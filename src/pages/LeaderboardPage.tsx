@@ -170,14 +170,14 @@ function MatchResultBadge({
 }) {
   if (!finished || homeScore == null || awayScore == null) {
     return (
-      <span className={`text-white/30 ${compact ? "text-[9px]" : "text-xs"}`}>—</span>
+      <span className={`text-white/30 ${compact ? "text-[11px]" : "text-xs"}`}>—</span>
     );
   }
 
   return (
     <span
       className={`inline-block rounded-md bg-[var(--gold)]/15 font-bold text-[var(--gold)] ${
-        compact ? "px-1 py-0.5 text-[9px]" : "px-1.5 py-0.5 text-xs sm:text-sm"
+        compact ? "px-1 py-0.5 text-[11px]" : "px-1.5 py-0.5 text-xs sm:text-sm"
       }`}
     >
       {homeScore}:{awayScore}
@@ -214,12 +214,12 @@ function MatchLabel({
   if (compact) {
     return (
       <div
-        className="mx-auto flex w-full max-w-[4.5rem] flex-col items-center leading-tight"
+        className="mx-auto flex w-full max-w-[6rem] flex-col items-center leading-tight"
         title={tooltip}
       >
-        <div className="flex items-center justify-center gap-0.5">
-          <TeamWithFlag name={homeTeam} flagWidth={13} showName={false} />
-          <span className="text-[9px] font-bold leading-none">{abbreviateTeam(homeTeam)}</span>
+        <div className="flex items-center justify-center gap-1">
+          <TeamWithFlag name={homeTeam} flagWidth={16} showName={false} />
+          <span className="text-[11px] font-bold leading-none sm:text-xs">{abbreviateTeam(homeTeam)}</span>
         </div>
         <div className="my-0.5 flex justify-center">
           <MatchResultBadge
@@ -229,11 +229,11 @@ function MatchLabel({
             compact
           />
         </div>
-        <div className="flex items-center justify-center gap-0.5">
-          <TeamWithFlag name={awayTeam} flagWidth={13} showName={false} />
-          <span className="text-[9px] font-bold leading-none">{abbreviateTeam(awayTeam)}</span>
+        <div className="flex items-center justify-center gap-1">
+          <TeamWithFlag name={awayTeam} flagWidth={16} showName={false} />
+          <span className="text-[11px] font-bold leading-none sm:text-xs">{abbreviateTeam(awayTeam)}</span>
         </div>
-        <span className="mt-0.5 text-[8px] text-white/35">{shortDate}</span>
+        <span className="mt-0.5 text-[10px] text-white/40 sm:text-[11px]">{shortDate}</span>
       </div>
     );
   }
@@ -440,14 +440,14 @@ export default function LeaderboardPage() {
                 <div className="card-pitch overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
                   <table className="w-full table-fixed text-left text-sm">
                     <colgroup>
-                      <col className="w-[4.5rem]" />
+                      <col className="w-[6rem]" />
                       {tipUsers.map((u) => (
                         <col key={u.id} className="w-10" />
                       ))}
                     </colgroup>
                     <thead className="border-b border-white/10 bg-white/5 text-white/50">
                       <tr>
-                        <th className="sticky left-0 z-10 bg-[#0d111c] px-0.5 py-2 text-center text-[9px] uppercase">
+                        <th className="sticky left-0 z-10 bg-[#0d111c] px-1 py-2 text-center text-xs uppercase">
                           Mecz
                         </th>
                         {tipUsers.map((u) => (
@@ -466,7 +466,7 @@ export default function LeaderboardPage() {
                         const finished = match.status === "FINISHED";
                         return (
                           <tr key={match.id} className="border-b border-white/5">
-                            <td className="sticky left-0 z-10 bg-[#0d111c]/95 px-0.5 py-1.5">
+                            <td className="sticky left-0 z-10 bg-[#0d111c]/95 px-1 py-2">
                               <MatchLabel
                                 homeTeam={match.homeTeam}
                                 awayTeam={match.awayTeam}

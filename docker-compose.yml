@@ -3,9 +3,12 @@ services:
     build: .
     container_name: wielka-liga-typerow
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "3000:3000"
     environment:
+      PORT: "3000"
       DATABASE_URL: "file:/app/data/wielka-liga-typerow.db"
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
@@ -21,6 +24,8 @@ services:
       target: builder
     profiles:
       - seed
+    env_file:
+      - .env
     environment:
       DATABASE_URL: "file:/app/data/wielka-liga-typerow.db"
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}

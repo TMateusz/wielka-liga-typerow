@@ -6,6 +6,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json package-lock.json* ./
+COPY prisma ./prisma
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 FROM base AS builder
