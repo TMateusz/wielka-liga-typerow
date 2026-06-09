@@ -1,0 +1,34 @@
+services:
+  app:
+    build: .
+    container_name: wielka-liga-typerow
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "file:/app/data/wielka-liga-typerow.db"
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-admin}
+    volumes:
+      - sqlite_data:/app/data
+
+  # Jednorazowy seed admina + import meczów:
+  # docker compose --profile seed run --rm seed
+  seed:
+    build:
+      context: .
+      target: builder
+    profiles:
+      - seed
+    environment:
+      DATABASE_URL: "file:/app/data/wielka-liga-typerow.db"
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-change-me-admin}
+    volumes:
+      - sqlite_data:/app/data
+    entrypoint: ["sh", "-c", "npx prisma db push && npx prisma db seed && npx tsx scripts/import-fixtures.ts"]
+    restart: "no"
+
+volumes:
+  sqlite_data:

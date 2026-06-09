@@ -1,0 +1,54 @@
+{
+  "name": "wielka-liga-typerow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,client -c blue,green \"tsx watch --env-file=.env server/index.ts\" \"vite\"",
+    "dev:client": "vite",
+    "dev:server": "tsx watch --env-file=.env server/index.ts",
+    "build": "vite build && tsc -p tsconfig.server.json",
+    "start": "NODE_ENV=production node dist/server/index.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "db:setup": "prisma db push && tsx --env-file=.env prisma/seed.ts && tsx --env-file=.env scripts/import-fixtures.ts",
+    "import:fixtures": "tsx --env-file=.env scripts/import-fixtures.ts",
+    "seed:demo": "tsx --env-file=.env scripts/seed-demo-players.ts",
+    "db:reset": "tsx --env-file=.env scripts/reset-for-production.ts",
+    "polish:teams": "tsx --env-file=.env scripts/polish-teams.ts",
+    "postinstall": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.9.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "flag-icons": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.513.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router-dom": "^7.6.2"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.8",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.18",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "@vitejs/plugin-react": "^4.5.1",
+    "concurrently": "^9.1.2",
+    "prisma": "^6.9.0",
+    "tailwindcss": "^4.1.8",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5"
+  }
+}
