@@ -286,11 +286,8 @@ export default function LeaderboardPage() {
       if (silent) setRefreshing(true);
       else setLoading(true);
       try {
-        const ranking = await loadRanking();
+        await loadRanking();
         void loadTips();
-        if (ranking.playerCount <= TIPS_MATRIX_USER_LIMIT) {
-          setShowMatrix(true);
-        }
       } catch {
         if (!silent) {
           setUsers([]);
@@ -414,16 +411,31 @@ export default function LeaderboardPage() {
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-[var(--gold)]">Tabela typów</h3>
-            {!matrixEnabled && (
-              <button
-                type="button"
-                onClick={() => setShowMatrix(true)}
-                className="btn-ghost text-sm"
-              >
-                Pokaż macierz
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowMatrix((open) => !open)}
+              className="btn-ghost text-sm"
+              aria-expanded={matrixEnabled}
+            >
+              {matrixEnabled ? (
+                <>
+                  <ChevronUp className="h-4 w-4" />
+                  Zwiń tabelę
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="h-4 w-4" />
+                  Rozwiń tabelę
+                </>
+              )}
+            </button>
           </div>
+
+          {!matrixEnabled && (
+            <p className="text-sm text-white/45">
+              {matches.length} meczów · {users.length} graczy — rozwiń, aby zobaczyć macierz typów.
+            </p>
+          )}
 
           {matrixEnabled ? (
             <>
@@ -437,7 +449,7 @@ export default function LeaderboardPage() {
               {tipsLoading ? (
                 <p className="text-sm text-white/40">Ładowanie typów…</p>
               ) : (
-                <div className="card-pitch overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch]">
+                <div className="card-pitch max-h-[min(28rem,55vh)] overflow-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
                   <table className="w-full table-fixed text-left text-sm">
                     <colgroup>
                       <col className="w-[7.5rem]" />
@@ -498,11 +510,7 @@ export default function LeaderboardPage() {
                 </div>
               )}
             </>
-          ) : (
-            <p className="text-sm text-white/40">
-              Macierz ukryta — przy {users.length} graczach użyj listy „Typy graczy” poniżej.
-            </p>
-          )}
+          ) : null}
         </section>
       )}
 
