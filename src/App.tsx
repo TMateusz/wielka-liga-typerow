@@ -9,6 +9,7 @@ import DashboardPage from "./pages/DashboardPage";
 import LeaderboardPage from "./pages/LeaderboardPage";
 import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
+import RulesPage from "./pages/RulesPage";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -56,6 +57,7 @@ export default function App() {
               element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />}
             />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/rules" element={<RulesPage />} />
             <Route
               path="/dashboard"
               element={

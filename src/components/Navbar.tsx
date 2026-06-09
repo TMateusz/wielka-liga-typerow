@@ -1,14 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, Shield, Trophy, LayoutDashboard, KeyRound, LogIn, UserPlus } from "lucide-react";
+import { LogOut, Shield, Trophy, LayoutDashboard, KeyRound, LogIn, UserPlus, BookOpen } from "lucide-react";
 import { getDisplayName } from "@shared/user-display";
 import { useAuth } from "../contexts/AuthContext";
+
+const rulesLink = { to: "/rules", label: "Zasady", icon: BookOpen };
 
 const memberLinks = [
   { to: "/dashboard", label: "Mecze", icon: LayoutDashboard },
   { to: "/leaderboard", label: "Ranking", icon: Trophy },
+  rulesLink,
 ];
 
-const guestLinks = [{ to: "/leaderboard", label: "Ranking", icon: Trophy }];
+const guestLinks = [
+  { to: "/leaderboard", label: "Ranking", icon: Trophy },
+  rulesLink,
+];
 
 export function Navbar() {
   const { pathname } = useLocation();

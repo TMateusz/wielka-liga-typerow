@@ -655,20 +655,13 @@ export default function LeaderboardPage() {
       </section>
 
       <div className="card-pitch p-4 text-sm text-white/60">
-        <p className="font-medium text-white/80">Zasady punktacji:</p>
-        <ul className="mt-2 list-inside list-disc space-y-1">
-          <li>3 punkty — dokładny wynik meczu</li>
-          <li>1 punkt — poprawny wynik (zwycięzca lub remis), ale zły wynik bramkowy</li>
-          <li>
-            Faza pucharowa przy remisie w 90. minucie: +1 pkt za remis, +1 pkt za zwycięzcę po
-            dogrywce (łącznie 2 pkt)
-          </li>
-          <li>
-            Faza pucharowa: +0,5 pkt — trafiony zwycięzca, ale typowałeś wygraną w 90. minucie
-            (a był remis i wygrana dopiero po dogrywce)
-          </li>
-          <li>0 punktów — błędny typ</li>
-        </ul>
+        <p>
+          Pełne zasady punktacji, typowania i rankingu znajdziesz w zakładce{" "}
+          <Link to="/rules" className="font-medium text-[var(--wc-gold)] hover:underline">
+            Zasady
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );
