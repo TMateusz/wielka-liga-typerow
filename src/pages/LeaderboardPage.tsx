@@ -5,7 +5,7 @@ import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { getDisplayName, getShortName, orderUsersForTipsTable } from "@shared/display-names";
 import { isDrawScore, isKnockoutStage } from "@shared/knockout";
-import { formatPoints, SCORING } from "@shared/scoring";
+import { formatPoints, isMatchLocked, SCORING } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
 import { abbreviateTeam } from "@shared/team-abbrev";
@@ -58,6 +58,10 @@ type TipsData = {
   predictions: Prediction[];
 };
 
+function canRevealPrediction(match: LeaderboardMatch, now: Date) {
+  return match.status !== "PENDING" || isMatchLocked(new Date(match.kickoffTime), now);
+}
+
 function formatDate(iso: string) {
   return new Intl.DateTimeFormat("pl-PL", {
     day: "numeric",
@@ -71,7 +75,7 @@ function ConcealedPrediction() {
   return (
     <span
       className="inline-flex items-center justify-center text-white/25"
-      title="Typ ukryty do zakończenia meczu"
+      title="Typ ukryty do rozpoczęcia meczu"
     >
       <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
     </span>
@@ -81,17 +85,19 @@ function ConcealedPrediction() {
 function PredictionCell({
   prediction,
   finished,
+  revealAllowed,
   concealed = false,
 }: {
   prediction?: Prediction;
   finished: boolean;
+  revealAllowed: boolean;
   concealed?: boolean;
 }) {
   if (!prediction) {
     return <span className="text-[10px] text-white/25 sm:text-sm">—</span>;
   }
 
-  if (concealed && !finished) {
+  if (concealed && !revealAllowed) {
     return <ConcealedPrediction />;
   }
 
@@ -269,6 +275,7 @@ export default function LeaderboardPage() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [playerSearch, setPlayerSearch] = useState("");
   const [showMatrix, setShowMatrix] = useState(false);
+  const [now, setNow] = useState(() => new Date());
   const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
   const [tournamentProgress, setTournamentProgress] = useState<TournamentProgress | null>(null);
 
@@ -315,6 +322,22 @@ export default function LeaderboardPage() {
   useEffect(() => {
     void loadLeaderboard();
   }, [loadLeaderboard]);
+
+  useEffect(() => {
+    const currentTime = now.getTime();
+    const nextKickoff = matches
+      .filter((match) => match.status === "PENDING")
+      .map((match) => new Date(match.kickoffTime).getTime())
+      .filter((kickoffTime) => kickoffTime > currentTime)
+      .sort((a, b) => a - b)[0];
+    const delayMs =
+      nextKickoff == null
+        ? 60_000
+        : Math.min(Math.max(nextKickoff - Date.now() + 250, 1_000), 60_000);
+
+    const id = window.setTimeout(() => setNow(new Date()), delayMs);
+    return () => window.clearTimeout(id);
+  }, [matches, now]);
 
   const predictionMap = useMemo(() => {
     const map = new Map<string, Prediction>();
@@ -493,6 +516,7 @@ export default function LeaderboardPage() {
                     <tbody>
                       {matches.map((match) => {
                         const finished = match.status === "FINISHED";
+                        const revealAllowed = canRevealPrediction(match, now);
                         return (
                           <tr key={match.id} className="border-b border-white/5">
                             <td className="sticky left-0 z-10 bg-[#0d111c]/95 px-1 py-2">
@@ -515,6 +539,7 @@ export default function LeaderboardPage() {
                                 <PredictionCell
                                   prediction={predictionMap.get(`${u.id}:${match.id}`)}
                                   finished={finished}
+                                  revealAllowed={revealAllowed}
                                   concealed={u.id !== user?.id}
                                 />
                               </td>
@@ -605,6 +630,7 @@ export default function LeaderboardPage() {
                       <ul className="space-y-2">
                         {userPredictions.map(({ match, prediction }) => {
                           const finished = match.status === "FINISHED";
+                          const revealAllowed = canRevealPrediction(match, now);
                           return (
                             <li
                               key={match.id}
@@ -619,10 +645,10 @@ export default function LeaderboardPage() {
                                 <span className="ml-0 mt-1 block text-white/40">{match.stage}</span>
                               </div>
                               <div className="flex items-center gap-3">
-                                {!finished && !isMe ? (
+                                {!revealAllowed && !isMe ? (
                                   <span className="inline-flex items-center gap-1.5 text-white/40">
                                     <Lock className="h-3.5 w-3.5" />
-                                    Ukryty do zakończenia
+                                    Ukryty do rozpoczęcia
                                   </span>
                                 ) : (
                                   <span className="font-bold">
