@@ -1,4 +1,5 @@
-/** Oficjalny terminarz MŚ 2026 (104 mecze). Czasy w EDT (UTC-4). */
+/** Oficjalny terminarz MŚ 2026 (104 mecze). Czasy w EDT (UTC-4).
+ *  Mecze po północy ET (np. 21:00 PT) mają datę kalendarzową ET — nie lokalną. */
 export type StaticFixture = {
   n: number;
   date: string;
@@ -15,7 +16,7 @@ export const WC2026_FIXTURES: StaticFixture[] = [
   { n: 3, date: "2026-06-12", timeEt: "15:00", home: "Canada", away: "Bosnia and Herzegovina", stage: "Grupa B", venue: "BMO Field, Toronto" },
   { n: 4, date: "2026-06-12", timeEt: "21:00", home: "USA", away: "Paraguay", stage: "Grupa D", venue: "SoFi Stadium, Los Angeles" },
   { n: 5, date: "2026-06-13", timeEt: "21:00", home: "Haiti", away: "Scotland", stage: "Grupa C", venue: "Gillette Stadium, Boston" },
-  { n: 6, date: "2026-06-13", timeEt: "00:00", home: "Australia", away: "Türkiye", stage: "Grupa D", venue: "BC Place, Vancouver" },
+  { n: 6, date: "2026-06-14", timeEt: "00:00", home: "Australia", away: "Türkiye", stage: "Grupa D", venue: "BC Place, Vancouver" },
   { n: 7, date: "2026-06-13", timeEt: "18:00", home: "Brazil", away: "Morocco", stage: "Grupa C", venue: "MetLife Stadium, New York" },
   { n: 8, date: "2026-06-13", timeEt: "15:00", home: "Qatar", away: "Switzerland", stage: "Grupa B", venue: "Levi's Stadium, San Francisco" },
   { n: 9, date: "2026-06-14", timeEt: "19:00", home: "Ivory Coast", away: "Ecuador", stage: "Grupa E", venue: "Lincoln Financial Field, Philadelphia" },
@@ -29,7 +30,7 @@ export const WC2026_FIXTURES: StaticFixture[] = [
   { n: 17, date: "2026-06-16", timeEt: "15:00", home: "France", away: "Senegal", stage: "Grupa I", venue: "MetLife Stadium, New York" },
   { n: 18, date: "2026-06-16", timeEt: "18:00", home: "Iraq", away: "Norway", stage: "Grupa I", venue: "Gillette Stadium, Boston" },
   { n: 19, date: "2026-06-16", timeEt: "21:00", home: "Argentina", away: "Algeria", stage: "Grupa J", venue: "Arrowhead Stadium, Kansas City" },
-  { n: 20, date: "2026-06-16", timeEt: "00:00", home: "Austria", away: "Jordan", stage: "Grupa J", venue: "Levi's Stadium, San Francisco" },
+  { n: 20, date: "2026-06-17", timeEt: "00:00", home: "Austria", away: "Jordan", stage: "Grupa J", venue: "Levi's Stadium, San Francisco" },
   { n: 21, date: "2026-06-17", timeEt: "19:00", home: "Ghana", away: "Panama", stage: "Grupa L", venue: "BMO Field, Toronto" },
   { n: 22, date: "2026-06-17", timeEt: "16:00", home: "England", away: "Croatia", stage: "Grupa L", venue: "AT&T Stadium, Dallas" },
   { n: 23, date: "2026-06-17", timeEt: "13:00", home: "Portugal", away: "Congo DR", stage: "Grupa K", venue: "NRG Stadium, Houston" },
@@ -45,7 +46,7 @@ export const WC2026_FIXTURES: StaticFixture[] = [
   { n: 33, date: "2026-06-20", timeEt: "16:00", home: "Germany", away: "Ivory Coast", stage: "Grupa E", venue: "BMO Field, Toronto" },
   { n: 34, date: "2026-06-20", timeEt: "20:00", home: "Ecuador", away: "Curaçao", stage: "Grupa E", venue: "Arrowhead Stadium, Kansas City" },
   { n: 35, date: "2026-06-20", timeEt: "13:00", home: "Netherlands", away: "Sweden", stage: "Grupa F", venue: "NRG Stadium, Houston" },
-  { n: 36, date: "2026-06-20", timeEt: "00:00", home: "Tunisia", away: "Japan", stage: "Grupa F", venue: "Estadio BBVA, Monterrey" },
+  { n: 36, date: "2026-06-20", timeEt: "23:00", home: "Tunisia", away: "Japan", stage: "Grupa F", venue: "Estadio BBVA, Monterrey" },
   { n: 37, date: "2026-06-21", timeEt: "18:00", home: "Uruguay", away: "Cape Verde", stage: "Grupa H", venue: "Hard Rock Stadium, Miami" },
   { n: 38, date: "2026-06-21", timeEt: "12:00", home: "Spain", away: "Saudi Arabia", stage: "Grupa H", venue: "Mercedes-Benz Stadium, Atlanta" },
   { n: 39, date: "2026-06-21", timeEt: "15:00", home: "Belgium", away: "Iran", stage: "Grupa G", venue: "SoFi Stadium, Los Angeles" },

@@ -25,6 +25,18 @@ type ChatResponse = {
   messages: ChatMessage[];
 };
 
+function chatLastSeenKey(userId: string): string {
+  return `chat-last-seen-${userId}`;
+}
+
+function latestMessageTime(messages: ChatMessage[]): string | null {
+  if (messages.length === 0) return null;
+  return messages.reduce(
+    (max, m) => (m.createdAt > max ? m.createdAt : max),
+    messages[0].createdAt,
+  );
+}
+
 function formatMessageTime(iso: string): string {
   const date = new Date(iso);
   const now = Date.now();
@@ -49,10 +61,21 @@ export function ChatWidget() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [hasUnread, setHasUnread] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
 
   const isAdmin = user?.role === "ADMIN";
+
+  const markAsRead = useCallback(
+    (msgs: ChatMessage[]) => {
+      if (!user) return;
+      const latest = latestMessageTime(msgs) ?? new Date().toISOString();
+      localStorage.setItem(chatLastSeenKey(user.id), latest);
+      setHasUnread(false);
+    },
+    [user],
+  );
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
     const el = listRef.current;
@@ -85,6 +108,39 @@ export function ChatWidget() {
     const id = setInterval(() => void loadMessages(true), CHAT_POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [open, user, loadMessages]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    markAsRead(messages);
+  }, [open, user, messages, markAsRead]);
+
+  useEffect(() => {
+    if (!user || open) return;
+
+    const storageKey = chatLastSeenKey(user.id);
+
+    async function checkUnread() {
+      try {
+        const data = await api<ChatResponse>("/chat");
+        const stored = localStorage.getItem(storageKey);
+
+        if (!stored) {
+          const latest = latestMessageTime(data.messages);
+          if (latest) localStorage.setItem(storageKey, latest);
+          setHasUnread(false);
+          return;
+        }
+
+        setHasUnread(data.messages.some((m) => m.createdAt > stored));
+      } catch {
+        // ignore background poll errors
+      }
+    }
+
+    void checkUnread();
+    const id = setInterval(() => void checkUnread(), CHAT_POLL_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [user, open]);
 
   useEffect(() => {
     if (!open) return;
@@ -291,10 +347,24 @@ export function ChatWidget() {
         className={`fixed bottom-4 right-4 z-[61] flex h-14 w-14 items-center justify-center rounded-full border border-[var(--wc-gold)]/40 bg-gradient-to-br from-[#1a2235] to-[#0d111c] text-[var(--wc-gold)] shadow-lg transition hover:scale-105 hover:border-[var(--wc-gold)]/70 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)] ${
           open ? "ring-2 ring-[var(--wc-gold)]/50" : ""
         }`}
-        aria-label={open ? "Zamknij czat ligowy" : "Otwórz czat ligowy"}
+        aria-label={
+          open
+            ? "Zamknij czat ligowy"
+            : hasUnread
+              ? "Otwórz czat ligowy — nowe wiadomości"
+              : "Otwórz czat ligowy"
+        }
         aria-expanded={open}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
+        {hasUnread && !open && (
+          <span
+            className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold leading-none text-white shadow-md ring-2 ring-[#0d111c] animate-pulse"
+            aria-hidden
+          >
+            !
+          </span>
+        )}
       </button>
     </>
   );
