@@ -12,5 +12,5 @@
     "resolveJsonModule": true,
     "declaration": false
   },
-  "include": ["server/**/*", "shared/**/*", "prisma/seed.ts"]
+  "include": ["server/**/*", "shared/**/*", "prisma/seed.ts", "scripts/refresh-kickoff-times.ts"]
 }

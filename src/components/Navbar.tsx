@@ -1,17 +1,20 @@
 import { Link, useLocation } from "react-router-dom";
-import { LogOut, Shield, Trophy, LayoutDashboard, KeyRound, LogIn, UserPlus, BookOpen } from "lucide-react";
+import { LogOut, Shield, Trophy, LayoutDashboard, KeyRound, LogIn, UserPlus, BookOpen, CalendarDays } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 const rulesLink = { to: "/rules", label: "Zasady", icon: BookOpen };
+const calendarLink = { to: "/calendar", label: "Kalendarz", icon: CalendarDays };
 
 const memberLinks = [
   { to: "/dashboard", label: "Mecze", icon: LayoutDashboard },
   { to: "/leaderboard", label: "Ranking", icon: Trophy },
+  calendarLink,
   rulesLink,
 ];
 
 const guestLinks = [
   { to: "/leaderboard", label: "Ranking", icon: Trophy },
+  calendarLink,
   rulesLink,
 ];
 

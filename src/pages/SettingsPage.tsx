@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Bell, KeyRound, Mail } from "lucide-react";
 import { getDisplayName } from "@shared/user-display";
 import { api } from "../api/client";
+import { PwaInstallCard } from "../components/PwaInstallCard";
 import { useAuth, type User } from "../contexts/AuthContext";
 
 export default function SettingsPage() {
@@ -202,6 +203,8 @@ export default function SettingsPage() {
           {passwordLoading ? "Zapisywanie…" : "Zmień hasło"}
         </button>
       </form>
+
+      <PwaInstallCard />
     </div>
   );
 }

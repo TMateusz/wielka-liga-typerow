@@ -10,7 +10,9 @@ import LeaderboardPage from "./pages/LeaderboardPage";
 import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
 import RulesPage from "./pages/RulesPage";
+import CalendarPage from "./pages/CalendarPage";
 import { ChatWidget } from "./components/ChatWidget";
+import { PwaInstallCard } from "./components/PwaInstallCard";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -58,6 +60,7 @@ export default function App() {
               element={user ? <Navigate to="/dashboard" replace /> : <RegisterPage />}
             />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route
               path="/dashboard"
@@ -91,6 +94,9 @@ export default function App() {
         {user && <ChatWidget />}
 
         <footer className="border-t border-white/10 py-4 text-center text-sm text-white/45">
+          <div className="mb-3 flex justify-center">
+            <PwaInstallCard compact />
+          </div>
           <p>Wielka Liga Typerów · FIFA World Cup 26</p>
           <p className="mt-1 text-xs text-white/30">WE ARE 26</p>
           <p className="mt-2 text-xs text-white/35">

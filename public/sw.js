@@ -1,5 +1,5 @@
 const CACHE = "wlt-shell-v1";
-const SHELL = ["/", "/index.html", "/favicon.svg", "/manifest.webmanifest"];
+const SHELL = ["/", "/index.html", "/favicon.svg", "/manifest.webmanifest", "/og-image.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

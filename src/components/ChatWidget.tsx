@@ -344,8 +344,8 @@ export function ChatWidget() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`fixed bottom-4 right-4 z-[61] flex h-14 w-14 items-center justify-center rounded-full border border-[var(--wc-gold)]/40 bg-gradient-to-br from-[#1a2235] to-[#0d111c] text-[var(--wc-gold)] shadow-lg transition hover:scale-105 hover:border-[var(--wc-gold)]/70 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)] ${
-          open ? "ring-2 ring-[var(--wc-gold)]/50" : ""
+        className={`fixed bottom-4 right-4 z-[61] h-14 w-14 items-center justify-center rounded-full border border-[var(--wc-gold)]/40 bg-gradient-to-br from-[#1a2235] to-[#0d111c] text-[var(--wc-gold)] shadow-lg transition hover:scale-105 hover:border-[var(--wc-gold)]/70 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)] ${
+          open ? "hidden sm:flex ring-2 ring-[var(--wc-gold)]/50" : "flex"
         }`}
         aria-label={
           open

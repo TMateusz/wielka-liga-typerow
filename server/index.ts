@@ -9,6 +9,7 @@ import predictionsRoutes from "./routes/predictions.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 import adminRoutes from "./routes/admin.js";
 import chatRoutes from "./routes/chat.js";
+import calendarRoutes from "./routes/calendar.js";
 import { ensureSeeded } from "./lib/ensure-seeded.js";
 import { tuneSqlite } from "./lib/sqlite-tuning.js";
 import { startReminderScheduler } from "./lib/reminder-scheduler.js";
@@ -33,6 +34,7 @@ app.use("/api/predictions", predictionsRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/calendar", calendarRoutes);
 
 const clientDir = path.join(__dirname, "../client");
 const clientIndex = path.join(clientDir, "index.html");
