@@ -1,13 +1,14 @@
 import { Router } from "express";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
+import { getTournamentProgress } from "../lib/tournament-progress.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
-  const [matches, lastResultUpdate] = await Promise.all([
+  const [matches, lastResultUpdate, tournamentProgress] = await Promise.all([
     prisma.match.findMany({
       orderBy: { kickoffTime: "asc" },
       include: {
@@ -17,6 +18,7 @@ router.get("/", requireAuth, async (req, res) => {
       },
     }),
     getLastResultUpdate(),
+    getTournamentProgress(),
   ]);
 
   const result = matches.map((m) =>
@@ -41,7 +43,7 @@ router.get("/", requireAuth, async (req, res) => {
     })
   );
 
-  res.json({ matches: result, lastResultUpdate });
+  res.json({ matches: result, lastResultUpdate, tournamentProgress });
 });
 
 export default router;

@@ -8,7 +8,8 @@ export async function setMatchResult(
   matchId: string,
   homeScore: number,
   awayScore: number,
-  knockoutWinnerInput?: KnockoutSide | null
+  knockoutWinnerInput?: KnockoutSide | null,
+  adminId?: string | null
 ) {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) {
@@ -65,5 +66,20 @@ export async function setMatchResult(
         resultEnteredAt: new Date(),
       },
     });
+
+    if (adminId) {
+      await tx.matchResultHistory.create({
+        data: {
+          matchId,
+          adminId,
+          homeScore,
+          awayScore,
+          knockoutWinner,
+          previousHomeScore: match.homeScore,
+          previousAwayScore: match.awayScore,
+          previousKnockoutWinner: match.knockoutWinner,
+        },
+      });
+    }
   });
 }

@@ -7,6 +7,7 @@ import {
   formatBettingOpensAt,
   formatPoints,
   getBetBlockReason,
+  isInNextBettingRound,
 } from "@shared/scoring";
 import { KnockoutWinnerPick } from "./KnockoutWinnerPick";
 import { TeamWithFlag } from "./TeamWithFlag";
@@ -61,6 +62,7 @@ export function MatchCard({ match, onSave }: Props) {
   const blockReason = finished ? null : getBetBlockReason(match.status, kickoff, now);
   const locked = blockReason !== null;
   const tooEarly = blockReason === "too_early";
+  const inNextRound = !finished && isInNextBettingRound(match.status, kickoff, now);
 
   useEffect(() => {
     if (finished || blockReason === "started" || blockReason === "not_pending") return;
@@ -120,9 +122,21 @@ export function MatchCard({ match, onSave }: Props) {
         : null;
 
   return (
-    <article className="card-pitch p-4 sm:p-5">
+    <article
+      id={`match-${match.id}`}
+      className={`card-pitch p-4 sm:p-5 ${
+        inNextRound ? "ring-1 ring-[var(--wc-gold)]/35 border-[var(--wc-gold)]/25" : ""
+      }`}
+    >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-white/60">
-        <span>{match.stage ?? "Mecz"}</span>
+        <span className="flex flex-wrap items-center gap-2">
+          {match.stage ?? "Mecz"}
+          {inNextRound && (
+            <span className="rounded bg-[var(--wc-gold)]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--wc-gold)]">
+              Kolejka kolejna
+            </span>
+          )}
+        </span>
         <span className="flex items-center gap-1">
           {locked || tooEarly ? (
             <Lock className={`h-3.5 w-3.5 ${tooEarly ? "text-white/35" : ""}`} />

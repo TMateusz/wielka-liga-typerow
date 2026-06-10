@@ -2,6 +2,7 @@ import { Router } from "express";
 import { UserRole } from "@prisma/client";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
+import { getTournamentProgress } from "../lib/tournament-progress.js";
 import { prisma } from "../lib/prisma.js";
 const router = Router();
 
@@ -34,19 +35,21 @@ const matchSelect = {
 
 /** Lekki ranking — sama klasyfikacja graczy. */
 router.get("/", async (_req, res) => {
-  const [users, lastResultUpdate] = await Promise.all([
+  const [users, lastResultUpdate, tournamentProgress] = await Promise.all([
     prisma.user.findMany({
       where: { role: UserRole.USER },
       orderBy: [{ totalPoints: "desc" }, { firstName: "asc" }, { lastName: "asc" }],
       select: userSelect,
     }),
     getLastResultUpdate(),
+    getTournamentProgress(),
   ]);
 
   res.json({
     users: users.map(serializeUser),
     playerCount: users.length,
     lastResultUpdate,
+    tournamentProgress,
   });
 });
 

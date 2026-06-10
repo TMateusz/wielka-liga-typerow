@@ -1,5 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil } from "lucide-react";
+import { ChevronDown, ChevronUp, History, Pencil } from "lucide-react";
+import { formatLastActive } from "@shared/relative-time";
 import { api } from "../api/client";
 import { AdminResultForm } from "../components/AdminResultForm";
 import { AdminUsersPanel } from "../components/AdminUsersPanel";
@@ -18,9 +19,30 @@ type AdminMatch = {
   homeScore: number | null;
   awayScore: number | null;
   knockoutWinner: string | null;
+  predictionCount?: number;
+  playerCount?: number;
 };
 
-type Filter = "pending" | "placeholders" | "finished" | "all";
+type ResultHistoryEntry = {
+  id: string;
+  createdAt: string;
+  adminNickname: string;
+  adminName: string;
+  match: {
+    homeTeam: string;
+    awayTeam: string;
+    stage: string | null;
+    fixtureNumber: number | null;
+  };
+  homeScore: number;
+  awayScore: number;
+  knockoutWinner: string | null;
+  previousHomeScore: number | null;
+  previousAwayScore: number | null;
+  isCorrection: boolean;
+};
+
+type Filter = "to_settle" | "pending" | "placeholders" | "finished" | "all";
 type AdminTab = "matches" | "users";
 
 export default function AdminPage() {
@@ -28,17 +50,23 @@ export default function AdminPage() {
   const [matches, setMatches] = useState<AdminMatch[]>([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("pending");
+  const [filter, setFilter] = useState<Filter>("to_settle");
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [resultHistory, setResultHistory] = useState<ResultHistoryEntry[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const loadMatches = useCallback(() => {
     return api<AdminMatch[]>("/admin/matches").then(setMatches);
   }, []);
 
+  const loadResultHistory = useCallback(() => {
+    return api<ResultHistoryEntry[]>("/admin/result-history").then(setResultHistory);
+  }, []);
+
   useEffect(() => {
-    loadMatches().finally(() => setLoading(false));
-  }, [loadMatches]);
+    Promise.all([loadMatches(), loadResultHistory()]).finally(() => setLoading(false));
+  }, [loadMatches, loadResultHistory]);
 
   const placeholderCount = useMemo(
     () =>
@@ -47,8 +75,22 @@ export default function AdminPage() {
     [matches]
   );
 
+  const toSettleCount = useMemo(
+    () =>
+      matches.filter(
+        (m) => m.status !== "FINISHED" && new Date(m.kickoffTime).getTime() < Date.now()
+      ).length,
+    [matches]
+  );
+
   const filtered = useMemo(() => {
     return matches.filter((m) => {
+      if (
+        filter === "to_settle" &&
+        (m.status === "FINISHED" || new Date(m.kickoffTime).getTime() >= Date.now())
+      ) {
+        return false;
+      }
       if (filter === "pending" && m.status === "FINISHED") return false;
       if (filter === "finished" && m.status !== "FINISHED") return false;
       if (
@@ -119,6 +161,7 @@ export default function AdminPage() {
           ? "Wynik poprawiony — ranking przeliczony!"
           : "Wynik zapisany — punkty naliczone w rankingu!"
       );
+      void loadResultHistory();
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Błąd zapisu wyniku");
     }
@@ -178,7 +221,8 @@ export default function AdminPage() {
         <div className="flex flex-wrap gap-2">
           {(
             [
-              ["pending", `Do wpisania (${pendingCount})`],
+              ["to_settle", `Do rozliczenia (${toSettleCount})`],
+              ["pending", `Nadchodzące (${pendingCount})`],
               ["placeholders", `Bez drużyn (${placeholderCount})`],
               ["finished", `Zakończone (${finishedCount})`],
               ["all", `Wszystkie (${matches.length})`],
@@ -226,6 +270,13 @@ export default function AdminPage() {
                   <p className="text-sm text-white/50">
                     {match.stage} · {new Date(match.kickoffTime).toLocaleString("pl-PL")}
                   </p>
+                  {match.playerCount != null && (
+                    <p className="text-xs text-white/40">
+                      Typowało:{" "}
+                      <strong className="text-white/60">{match.predictionCount ?? 0}</strong> /{" "}
+                      {match.playerCount} graczy
+                    </p>
+                  )}
                   {placeholder && match.status !== "FINISHED" && (
                     <span className="mt-1 inline-block rounded bg-amber-500/20 px-2 py-0.5 text-xs text-amber-300">
                       Uzupełnij drużyny przed typowaniem
@@ -292,6 +343,62 @@ export default function AdminPage() {
           );
         })}
       </div>
+
+      <section className="card-pitch overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setHistoryOpen((v) => !v)}
+          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-white/5"
+        >
+          <span className="flex items-center gap-2 font-semibold text-[var(--gold)]">
+            <History className="h-4 w-4" />
+            Historia wyników ({resultHistory.length})
+          </span>
+          {historyOpen ? (
+            <ChevronUp className="h-4 w-4 text-white/50" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-white/50" />
+          )}
+        </button>
+        {historyOpen && (
+          <div className="border-t border-white/10 px-4 py-3">
+            {resultHistory.length === 0 ? (
+              <p className="text-sm text-white/45">Brak zapisanych wyników.</p>
+            ) : (
+              <ul className="max-h-80 space-y-2 overflow-y-auto text-sm">
+                {resultHistory.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2"
+                  >
+                    <p className="text-white/80">
+                      {entry.match.homeTeam} {entry.homeScore}:{entry.awayScore}{" "}
+                      {entry.match.awayTeam}
+                      {entry.isCorrection && (
+                        <span className="ml-2 text-xs text-amber-300">(poprawka)</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-white/45">
+                      {entry.match.stage}
+                      {entry.match.fixtureNumber ? ` · Mecz #${entry.match.fixtureNumber}` : ""}
+                      {" · "}
+                      {formatLastActive(entry.createdAt)} · admin: {entry.adminNickname}
+                      {entry.isCorrection &&
+                        entry.previousHomeScore != null &&
+                        entry.previousAwayScore != null && (
+                          <>
+                            {" · "}
+                            było {entry.previousHomeScore}:{entry.previousAwayScore}
+                          </>
+                        )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </section>
         </>
       )}
     </div>

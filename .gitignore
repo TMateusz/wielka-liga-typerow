@@ -19,3 +19,4 @@ prisma/data/
 # misc
 .DS_Store
 *.log
+backups/

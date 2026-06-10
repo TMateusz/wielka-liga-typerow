@@ -48,17 +48,39 @@ router.post("/sync/now", async (_req, res) => {
 });
 
 router.get("/matches", async (_req, res) => {
-  const matches = await prisma.match.findMany({
-    orderBy: { kickoffTime: "asc" },
-  });
+  const [matches, playerCount] = await Promise.all([
+    prisma.match.findMany({
+      orderBy: { kickoffTime: "asc" },
+      include: {
+        _count: {
+          select: {
+            predictions: {
+              where: { user: { role: UserRole.USER } },
+            },
+          },
+        },
+      },
+    }),
+    prisma.user.count({ where: { role: UserRole.USER } }),
+  ]);
 
   res.json(
-    matches.map((m) =>
-      localizeMatch({
-        ...m,
+    matches.map((m) => ({
+      ...localizeMatch({
+        id: m.id,
+        fixtureNumber: m.fixtureNumber,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
         kickoffTime: m.kickoffTime.toISOString(),
-      })
-    )
+        status: m.status,
+        stage: m.stage,
+        homeScore: m.homeScore,
+        awayScore: m.awayScore,
+        knockoutWinner: m.knockoutWinner,
+      }),
+      predictionCount: m._count.predictions,
+      playerCount,
+    }))
   );
 });
 
@@ -130,7 +152,13 @@ router.post("/matches/:id/result", async (req, res) => {
   const isCorrection = match.status === "FINISHED";
 
   try {
-    await setMatchResult(id, homeScore, awayScore, parseKnockoutSide(knockoutWinner));
+    await setMatchResult(
+      id,
+      homeScore,
+      awayScore,
+      parseKnockoutSide(knockoutWinner),
+      req.user!.id
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Nie udało się zapisać wyniku";
     return res.status(400).json({ error: message });
@@ -224,6 +252,56 @@ router.patch("/users/:id", async (req, res) => {
   });
 
   res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+});
+
+router.get("/result-history", async (req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 30, 100);
+
+  const rows = await prisma.matchResultHistory.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    include: {
+      match: {
+        select: {
+          homeTeam: true,
+          awayTeam: true,
+          stage: true,
+          fixtureNumber: true,
+        },
+      },
+      admin: {
+        select: {
+          nickname: true,
+          firstName: true,
+        },
+      },
+    },
+  });
+
+  res.json(
+    rows.map((row) => {
+      const match = localizeMatch(row.match);
+      return {
+        id: row.id,
+        createdAt: row.createdAt.toISOString(),
+        adminNickname: row.admin.nickname,
+        adminName: row.admin.firstName,
+        match: {
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          stage: match.stage,
+          fixtureNumber: row.match.fixtureNumber,
+        },
+        homeScore: row.homeScore,
+        awayScore: row.awayScore,
+        knockoutWinner: row.knockoutWinner,
+        previousHomeScore: row.previousHomeScore,
+        previousAwayScore: row.previousAwayScore,
+        previousKnockoutWinner: row.previousKnockoutWinner,
+        isCorrection: row.previousHomeScore != null || row.previousAwayScore != null,
+      };
+    })
+  );
 });
 
 router.delete("/users/:id", async (req, res) => {

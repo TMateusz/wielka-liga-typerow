@@ -119,6 +119,18 @@ export function canBetOnMatch(
   return getBetBlockReason(status, kickoffTime, now) === null;
 }
 
+const NEXT_ROUND_MS = BET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+
+/** Mecz w „kolejce kolejnej” — typowanie otwarte, start w ciągu okna typowania. */
+export function isInNextBettingRound(
+  status: string,
+  kickoffTime: Date,
+  now: Date = new Date()
+): boolean {
+  if (!canBetOnMatch(status, kickoffTime, now)) return false;
+  return kickoffTime.getTime() - now.getTime() <= NEXT_ROUND_MS;
+}
+
 export function getDashboardMatchSortRank(
   match: { status: string; kickoffTime: Date | string },
   now: Date = new Date()

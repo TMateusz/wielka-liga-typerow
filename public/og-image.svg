@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#070b14"/>
+      <stop offset="50%" stop-color="#111827"/>
+      <stop offset="100%" stop-color="#070b14"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <rect x="60" y="60" width="1080" height="510" rx="24" fill="none" stroke="#d4af37" stroke-width="4" opacity="0.35"/>
+  <text x="600" y="250" text-anchor="middle" fill="#d4af37" font-family="Arial, sans-serif" font-size="72" font-weight="700">WIELKA LIGA TYPERÓW</text>
+  <text x="600" y="330" text-anchor="middle" fill="#f4f1ea" font-family="Arial, sans-serif" font-size="36">FIFA World Cup 2026</text>
+  <text x="600" y="400" text-anchor="middle" fill="#f4f1ea" opacity="0.75" font-family="Arial, sans-serif" font-size="28">Typuj wyniki · [ledz ranking · rywalizuj ze znajomymi</text>
+  <text x="600" y="520" text-anchor="middle" fill="#d4af37" opacity="0.8" font-family="Arial, sans-serif" font-size="24">liga-typerow.itur.app</text>
+</svg>

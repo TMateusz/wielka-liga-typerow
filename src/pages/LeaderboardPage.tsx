@@ -9,7 +9,10 @@ import { formatPoints, SCORING } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
 import { abbreviateTeam } from "@shared/team-abbrev";
-import { LastResultUpdateInfo, type LastResultUpdate } from "../components/LastResultUpdateInfo";
+import { LeaderGapBanner } from "../components/LeaderGapBanner";
+import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
+import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
+import type { LastResultUpdate } from "../components/LastResultUpdateInfo";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { RefreshButton } from "../components/RefreshButton";
 import { TeamWithFlag } from "../components/TeamWithFlag";
@@ -47,6 +50,7 @@ type LeaderboardData = {
   users: LeaderboardUser[];
   playerCount: number;
   lastResultUpdate: LastResultUpdate | null;
+  tournamentProgress: TournamentProgress | null;
 };
 
 type TipsData = {
@@ -266,11 +270,13 @@ export default function LeaderboardPage() {
   const [playerSearch, setPlayerSearch] = useState("");
   const [showMatrix, setShowMatrix] = useState(false);
   const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
+  const [tournamentProgress, setTournamentProgress] = useState<TournamentProgress | null>(null);
 
   const loadRanking = useCallback(async () => {
     const result = await api<LeaderboardData>("/leaderboard");
     setUsers(result.users);
     setLastResultUpdate(result.lastResultUpdate ?? null);
+    setTournamentProgress(result.tournamentProgress ?? null);
     return result;
   }, []);
 
@@ -378,7 +384,12 @@ export default function LeaderboardPage() {
         <RefreshButton loading={refreshing} onClick={() => loadLeaderboard(true)} />
       </div>
 
-      <LastResultUpdateInfo update={lastResultUpdate} />
+      <TournamentStatusInfo
+        lastResultUpdate={lastResultUpdate}
+        tournamentProgress={tournamentProgress}
+      />
+
+      <LeaderGapBanner users={users} currentUserId={user?.id} />
 
       {/* Tabela punktów */}
       <div className="card-pitch overflow-hidden">
@@ -583,6 +594,11 @@ export default function LeaderboardPage() {
 
                 {isExpanded && (
                   <div className="border-t border-white/10 px-4 py-3">
+                    <PlayerStatsPanel
+                      userId={u.id}
+                      predictions={predictions}
+                      matches={matches}
+                    />
                     {userPredictions.length === 0 ? (
                       <p className="text-sm text-white/40">Brak typów</p>
                     ) : (
