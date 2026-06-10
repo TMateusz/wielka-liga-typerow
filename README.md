@@ -4,7 +4,8 @@ Publiczna liga typerów na **Mistrzostwa Świata 2026**. Każdy może się **sam
 
 ## Funkcje
 
-- **Rejestracja** — imię, nazwisko, nick (login), hasło
+- **Rejestracja** — imię, nazwisko, nick (login), e-mail, hasło
+- **Przypomnienia e-mail** — ~8h przed meczem, jeśli gracz nie ma typu
 - **Ranking publiczny** — podgląd bez logowania
 - **Typowanie** — dokładny wynik = 3 pkt, poprawny wynik = 1 pkt
 - **Panel admina** — import meczów MŚ 2026, wpisywanie wyników
@@ -81,7 +82,29 @@ Pierwsza komenda buduje i startuje aplikację. Druga (jednorazowo) tworzy konto 
 Gracze:
 1. Wchodzą na stronę
 2. Klikają **Dołącz**
-3. Wpisują imię, nazwisko, nick, hasło i **kod rejestracji** z `.env`
+3. Wpisują imię, nazwisko, nick, e-mail, hasło i **kod rejestracji** z `.env`
+
+### Przypomnienia e-mail (opcjonalnie)
+
+W `.env` na serwerze ustaw SMTP i adres aplikacji:
+
+```env
+APP_URL="https://liga-typerow.itur.app"
+EMAIL_REMINDERS_ENABLED="true"
+SMTP_HOST="smtp.twoj-provider.pl"
+SMTP_PORT="587"
+SMTP_USER="twoj-login"
+SMTP_PASS="twoje-haslo-lub-api-key"
+SMTP_FROM="Wielka Liga Typerów <noreply@twoja-domena.pl>"
+```
+
+Serwer co 15 min sprawdza mecze startujące za ~8h i wysyła mail do graczy **bez typu** (z deduplikacją — jeden mail na mecz).
+
+**Test bez wysyłki:** `EMAIL_REMINDERS_DRY_RUN="true"` — wtedy treść trafia tylko do logów Dockera.
+
+**Darmowe / tanie SMTP:** Brevo (Sendinblue), Resend, Gmail z hasłem aplikacji.
+
+Gracze mogą wyłączyć przypomnienia w **Ustawienia** → checkbox.
 
 ---
 

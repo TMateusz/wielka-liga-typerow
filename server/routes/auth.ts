@@ -1,5 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import { isValidEmail, normalizeEmail } from "../../shared/email.js";
 import { isValidNickname, normalizeNickname } from "../../shared/user-display.js";
 import { prisma } from "../lib/prisma.js";
 import { rateLimit } from "../lib/rate-limit.js";
@@ -31,6 +32,8 @@ const userSelect = {
   firstName: true,
   lastName: true,
   nickname: true,
+  email: true,
+  emailRemindersEnabled: true,
   role: true,
   totalPoints: true,
 } as const;
@@ -39,10 +42,15 @@ function validateRegistration(body: Record<string, unknown>) {
   const firstName = typeof body.firstName === "string" ? body.firstName.trim() : "";
   const lastName = typeof body.lastName === "string" ? body.lastName.trim() : "";
   const nicknameRaw = typeof body.nickname === "string" ? body.nickname.trim() : "";
+  const emailRaw = typeof body.email === "string" ? body.email.trim() : "";
   const password = typeof body.password === "string" ? body.password : "";
 
   if (firstName.length < 2 || lastName.length < 2) {
     return { error: "Imię i nazwisko muszą mieć co najmniej 2 znaki" };
+  }
+
+  if (!isValidEmail(emailRaw)) {
+    return { error: "Podaj prawidłowy adres e-mail" };
   }
 
   if (!isValidNickname(nicknameRaw)) {
@@ -60,6 +68,7 @@ function validateRegistration(body: Record<string, unknown>) {
       firstName,
       lastName,
       nickname: normalizeNickname(nicknameRaw),
+      email: normalizeEmail(emailRaw),
       password,
     },
   };
@@ -86,11 +95,16 @@ router.post("/register", registerLimit, async (req, res) => {
     return res.status(400).json({ error: validated.error });
   }
 
-  const { firstName, lastName, nickname, password } = validated.data;
+  const { firstName, lastName, nickname, email, password } = validated.data;
 
   const existing = await prisma.user.findUnique({ where: { nickname } });
   if (existing) {
     return res.status(409).json({ error: "Ten nick jest już zajęty" });
+  }
+
+  const emailTaken = await prisma.user.findUnique({ where: { email } });
+  if (emailTaken) {
+    return res.status(409).json({ error: "Ten adres e-mail jest już zajęty" });
   }
 
   const hashed = await bcrypt.hash(password, 12);
@@ -99,6 +113,7 @@ router.post("/register", registerLimit, async (req, res) => {
       firstName,
       lastName,
       nickname,
+      email,
       password: hashed,
       registrationIp: ip === "unknown" ? null : ip,
     },
@@ -147,6 +162,44 @@ router.get("/me", requireAuth, async (req, res) => {
   }
 
   await touchUserActivity(user.id);
+  res.json(user);
+});
+
+router.patch("/profile", requireAuth, async (req, res) => {
+  const emailRaw = typeof req.body.email === "string" ? req.body.email.trim() : undefined;
+  const remindersRaw = req.body.emailRemindersEnabled;
+
+  const data: { email?: string; emailRemindersEnabled?: boolean } = {};
+
+  if (emailRaw !== undefined) {
+    if (!isValidEmail(emailRaw)) {
+      return res.status(400).json({ error: "Podaj prawidłowy adres e-mail" });
+    }
+    const email = normalizeEmail(emailRaw);
+    const taken = await prisma.user.findFirst({
+      where: { email, NOT: { id: req.user!.id } },
+      select: { id: true },
+    });
+    if (taken) {
+      return res.status(409).json({ error: "Ten adres e-mail jest już zajęty" });
+    }
+    data.email = email;
+  }
+
+  if (typeof remindersRaw === "boolean") {
+    data.emailRemindersEnabled = remindersRaw;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return res.status(400).json({ error: "Brak danych do zapisania" });
+  }
+
+  const user = await prisma.user.update({
+    where: { id: req.user!.id },
+    data,
+    select: userSelect,
+  });
+
   res.json(user);
 });
 

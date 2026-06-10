@@ -14,6 +14,8 @@ export type User = {
   firstName: string;
   lastName: string;
   nickname: string;
+  email?: string | null;
+  emailRemindersEnabled?: boolean;
   role: "USER" | "ADMIN";
   totalPoints?: number;
 };
@@ -27,6 +29,7 @@ type AuthContextType = {
     firstName: string;
     lastName: string;
     nickname: string;
+    email: string;
     password: string;
     inviteCode?: string;
   }) => Promise<void>;
@@ -78,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       firstName: string;
       lastName: string;
       nickname: string;
+      email: string;
       password: string;
       inviteCode?: string;
     }) => {

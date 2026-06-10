@@ -75,7 +75,7 @@ export function Navbar() {
                 }`}
               >
                 <KeyRound className="h-4 w-4" />
-                Hasło
+                Ustawienia
               </Link>
 
               <button onClick={logout} className="btn-ghost text-sm">

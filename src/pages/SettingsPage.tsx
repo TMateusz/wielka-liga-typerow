@@ -1,20 +1,54 @@
-import { FormEvent, useState } from "react";
-import { KeyRound } from "lucide-react";
+import { FormEvent, useEffect, useState } from "react";
+import { Bell, KeyRound, Mail } from "lucide-react";
 import { getDisplayName } from "@shared/user-display";
 import { api } from "../api/client";
-import { useAuth } from "../contexts/AuthContext";
+import { useAuth, type User } from "../contexts/AuthContext";
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState<User | null>(user);
+  const [profileError, setProfileError] = useState("");
+  const [profileSuccess, setProfileSuccess] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [passwordSuccess, setPasswordSuccess] = useState("");
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    api<User>("/auth/me")
+      .then(setProfile)
+      .catch(() => setProfile(user));
+  }, [user]);
+
+  async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
-    setSuccess("");
-    setLoading(true);
+    setProfileError("");
+    setProfileSuccess("");
+    setProfileLoading(true);
+
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email")).trim();
+    const emailRemindersEnabled = form.get("emailRemindersEnabled") === "on";
+
+    try {
+      const updated = await api<User>("/auth/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ email, emailRemindersEnabled }),
+      });
+      setProfile(updated);
+      setProfileSuccess("Ustawienia e-mail zostały zapisane.");
+    } catch (err) {
+      setProfileError(err instanceof Error ? err.message : "Nie udało się zapisać ustawień");
+    } finally {
+      setProfileLoading(false);
+    }
+  }
+
+  async function handlePasswordSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setPasswordError("");
+    setPasswordSuccess("");
+    setPasswordLoading(true);
 
     const form = new FormData(e.currentTarget);
     const currentPassword = String(form.get("currentPassword"));
@@ -22,8 +56,8 @@ export default function SettingsPage() {
     const confirmPassword = String(form.get("confirmPassword"));
 
     if (newPassword !== confirmPassword) {
-      setError("Nowe hasła nie są identyczne");
-      setLoading(false);
+      setPasswordError("Nowe hasła nie są identyczne");
+      setPasswordLoading(false);
       return;
     }
 
@@ -32,12 +66,12 @@ export default function SettingsPage() {
         method: "POST",
         body: JSON.stringify({ currentPassword, newPassword }),
       });
-      setSuccess("Hasło zostało zmienione.");
+      setPasswordSuccess("Hasło zostało zmienione.");
       e.currentTarget.reset();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nie udało się zmienić hasła");
+      setPasswordError(err instanceof Error ? err.message : "Nie udało się zmienić hasła");
     } finally {
-      setLoading(false);
+      setPasswordLoading(false);
     }
   }
 
@@ -51,7 +85,62 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="card-pitch flex flex-col gap-4 p-6">
+      <form onSubmit={handleProfileSubmit} className="card-pitch flex flex-col gap-4 p-6">
+        <div className="flex items-center gap-2 text-[var(--gold)]">
+          <Mail className="h-5 w-5" />
+          <h3 className="font-semibold">E-mail i przypomnienia</h3>
+        </div>
+
+        <div>
+          <label htmlFor="email" className="mb-1 block text-sm font-medium">
+            Adres e-mail
+          </label>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            defaultValue={profile?.email ?? ""}
+            key={profile?.email ?? "empty"}
+            className="w-full rounded-xl border border-white/20 bg-white/10 px-4 py-2.5 outline-none focus:border-[var(--gold)]"
+            placeholder="jan@example.com"
+          />
+        </div>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+          <input
+            type="checkbox"
+            name="emailRemindersEnabled"
+            defaultChecked={profile?.emailRemindersEnabled !== false}
+            key={profile?.emailRemindersEnabled ? "on" : "off"}
+            className="mt-1 h-4 w-4 rounded border-white/30"
+          />
+          <span>
+            <span className="flex items-center gap-1.5 font-medium">
+              <Bell className="h-4 w-4 text-[var(--gold)]" />
+              Przypomnienia przed meczem
+            </span>
+            <span className="mt-1 block text-sm text-white/55">
+              E-mail ~8 godzin przed startem, jeśli nie masz typu na dany mecz
+            </span>
+          </span>
+        </label>
+
+        {profileError && (
+          <p className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{profileError}</p>
+        )}
+
+        {profileSuccess && (
+          <p className="rounded-lg bg-green-500/20 px-3 py-2 text-sm text-green-200">{profileSuccess}</p>
+        )}
+
+        <button type="submit" disabled={profileLoading} className="btn-primary w-full">
+          {profileLoading ? "Zapisywanie…" : "Zapisz e-mail"}
+        </button>
+      </form>
+
+      <form onSubmit={handlePasswordSubmit} className="card-pitch flex flex-col gap-4 p-6">
         <div className="flex items-center gap-2 text-[var(--gold)]">
           <KeyRound className="h-5 w-5" />
           <h3 className="font-semibold">Zmiana hasła</h3>
@@ -101,16 +190,16 @@ export default function SettingsPage() {
           />
         </div>
 
-        {error && (
-          <p className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{error}</p>
+        {passwordError && (
+          <p className="rounded-lg bg-red-500/20 px-3 py-2 text-sm text-red-200">{passwordError}</p>
         )}
 
-        {success && (
-          <p className="rounded-lg bg-green-500/20 px-3 py-2 text-sm text-green-200">{success}</p>
+        {passwordSuccess && (
+          <p className="rounded-lg bg-green-500/20 px-3 py-2 text-sm text-green-200">{passwordSuccess}</p>
         )}
 
-        <button type="submit" disabled={loading} className="btn-primary w-full">
-          {loading ? "Zapisywanie…" : "Zmień hasło"}
+        <button type="submit" disabled={passwordLoading} className="btn-primary w-full">
+          {passwordLoading ? "Zapisywanie…" : "Zmień hasło"}
         </button>
       </form>
     </div>
