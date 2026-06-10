@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, Lock, Medal, Search } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
-import { getDisplayName, getShortName, orderUsersForTipsTable } from "@shared/display-names";
+import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/display-names";
 import { isDrawScore, isKnockoutStage } from "@shared/knockout";
-import { formatPoints, SCORING } from "@shared/scoring";
+import { formatPoints, isMatchLocked, SCORING } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
 import { abbreviateTeam } from "@shared/team-abbrev";
@@ -71,7 +71,7 @@ function ConcealedPrediction() {
   return (
     <span
       className="inline-flex items-center justify-center text-white/25"
-      title="Typ ukryty do zakończenia meczu"
+      title="Typ ukryty do rozpoczęcia meczu"
     >
       <Lock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
     </span>
@@ -271,6 +271,18 @@ export default function LeaderboardPage() {
   const [showMatrix, setShowMatrix] = useState(false);
   const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
   const [tournamentProgress, setTournamentProgress] = useState<TournamentProgress | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const imminentKickoff = matches.some((m) => {
+      if (m.status === "FINISHED") return false;
+      const msToKickoff = new Date(m.kickoffTime).getTime() - Date.now();
+      return msToKickoff <= 5 * 60 * 1000;
+    });
+    const intervalMs = imminentKickoff ? 1_000 : 30_000;
+    const id = setInterval(() => setNow(new Date()), intervalMs);
+    return () => clearInterval(id);
+  }, [matches]);
 
   const loadRanking = useCallback(async () => {
     const result = await api<LeaderboardData>("/leaderboard");
@@ -343,8 +355,9 @@ export default function LeaderboardPage() {
     const myEntry = user ? ranked.find((r) => r.user.id === user.id) : undefined;
     const meBelowTop =
       myEntry && myEntry.rank > RANKING_TOP_N ? myEntry : undefined;
+    const matrixColumns = meBelowTop ? [...top, meBelowTop] : top;
 
-    return { top, meBelowTop };
+    return { top, meBelowTop, matrixColumns };
   }, [users, user?.id]);
 
   if (loading) {
@@ -360,7 +373,7 @@ export default function LeaderboardPage() {
       {!user && (
         <div className="card-pitch flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
           <p className="text-white/70">
-            Podgląd rankingu bez logowania — typy na nadchodzące mecze są ukryte.
+            Podgląd rankingu bez logowania — typy na mecze jeszcze się nie rozpoczęte są ukryte.
           </p>
           <div className="flex flex-wrap gap-2">
             <Link to="/login" className="btn-ghost text-sm">
@@ -450,18 +463,19 @@ export default function LeaderboardPage() {
 
           {!matrixEnabled && (
             <p className="text-sm text-white/45">
-              {matches.length} meczów · {users.length} graczy — rozwiń, aby zobaczyć macierz typów.
+              {matches.length} meczów · top {RANKING_TOP_N}
+              {rankingDisplay.meBelowTop ? " + Ty" : ""} — rozwiń, aby zobaczyć macierz typów.
             </p>
           )}
 
           {matrixEnabled ? (
             <>
               <p className="text-sm text-white/50">
-                Typy innych graczy na nadchodzące mecze są ukryte. Po zakończeniu meczu widać
-                wynik i punkty (+3 / +1 / +0).
+                Typy innych graczy są ukryte do rozpoczęcia meczu. Po starcie widać obstawienia,
+                a po zakończeniu i wpisaniu wyniku — także punkty (+3 / +1 / +0).
               </p>
               <p className="text-xs text-white/40 sm:hidden">
-                Przesuń tabelę w bok, aby zobaczyć wszystkich graczy →
+                Przesuń tabelę w bok, aby zobaczyć wszystkie kolumny →
               </p>
               {tipsLoading ? (
                 <p className="text-sm text-white/40">Ładowanie typów…</p>
@@ -470,7 +484,7 @@ export default function LeaderboardPage() {
                   <table className="w-full table-fixed text-left text-sm">
                     <colgroup>
                       <col className="w-[7.5rem]" />
-                      {tipUsers.map((u) => (
+                      {rankingDisplay.matrixColumns.map(({ user: u }) => (
                         <col key={u.id} className="w-10" />
                       ))}
                     </colgroup>
@@ -479,20 +493,27 @@ export default function LeaderboardPage() {
                         <th className="sticky left-0 z-10 bg-[#0d111c] px-1 py-2 text-center text-sm uppercase">
                           Mecz
                         </th>
-                        {tipUsers.map((u) => (
-                          <th
-                            key={u.id}
-                            className="px-0.5 py-2 text-center text-[9px] font-medium sm:text-[10px] sm:whitespace-nowrap"
-                          >
-                            <span className="sm:hidden">{getShortName(u).slice(0, 4)}</span>
-                            <span className="hidden sm:inline">{getShortName(u)}</span>
-                          </th>
-                        ))}
+                        {rankingDisplay.matrixColumns.map(({ user: u, rank }) => {
+                          const isMe = u.id === user?.id;
+                          return (
+                            <th
+                              key={u.id}
+                              title={isMe ? `${getDisplayName(u)} (Ty)` : getDisplayName(u)}
+                              className={`px-0.5 py-2 text-center text-[9px] font-medium leading-tight sm:text-[10px] ${
+                                isMe ? "text-[var(--gold)]" : ""
+                              }`}
+                            >
+                              <span className="block font-mono text-white/40">{rank}</span>
+                              <span className="block font-semibold">{getInitials(u)}</span>
+                            </th>
+                          );
+                        })}
                       </tr>
                     </thead>
                     <tbody>
                       {matches.map((match) => {
                         const finished = match.status === "FINISHED";
+                        const locked = isMatchLocked(new Date(match.kickoffTime), now);
                         return (
                           <tr key={match.id} className="border-b border-white/5">
                             <td className="sticky left-0 z-10 bg-[#0d111c]/95 px-1 py-2">
@@ -507,15 +528,15 @@ export default function LeaderboardPage() {
                                 compact
                               />
                             </td>
-                            {tipUsers.map((u) => (
+                            {rankingDisplay.matrixColumns.map(({ user: u }) => (
                               <td
                                 key={u.id}
-                                className="px-0.5 py-1.5 text-center"
+                                className={`px-0.5 py-1.5 text-center ${u.id === user?.id ? "bg-[var(--gold)]/5" : ""}`}
                               >
                                 <PredictionCell
                                   prediction={predictionMap.get(`${u.id}:${match.id}`)}
                                   finished={finished}
-                                  concealed={u.id !== user?.id}
+                                  concealed={u.id !== user?.id && !locked}
                                 />
                               </td>
                             ))}
@@ -605,6 +626,7 @@ export default function LeaderboardPage() {
                       <ul className="space-y-2">
                         {userPredictions.map(({ match, prediction }) => {
                           const finished = match.status === "FINISHED";
+                          const locked = isMatchLocked(new Date(match.kickoffTime), now);
                           return (
                             <li
                               key={match.id}
@@ -619,10 +641,10 @@ export default function LeaderboardPage() {
                                 <span className="ml-0 mt-1 block text-white/40">{match.stage}</span>
                               </div>
                               <div className="flex items-center gap-3">
-                                {!finished && !isMe ? (
+                                {!finished && !isMe && !locked ? (
                                   <span className="inline-flex items-center gap-1.5 text-white/40">
                                     <Lock className="h-3.5 w-3.5" />
-                                    Ukryty do zakończenia
+                                    Ukryty do rozpoczęcia meczu
                                   </span>
                                 ) : (
                                   <span className="font-bold">

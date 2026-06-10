@@ -12,6 +12,15 @@ export function getShortName(user: UserNameFields): string {
   return user.firstName;
 }
 
+export function getInitials(user: UserNameFields): string {
+  const first = user.firstName.trim().charAt(0).toUpperCase();
+  const last = user.lastName.trim().charAt(0).toUpperCase();
+  if (first && last) return `${first}${last}`;
+  if (first) return first;
+  if (last) return last;
+  return user.nickname.slice(0, 2).toUpperCase();
+}
+
 /** Kolejność jak w rankingu: punkty malejąco, potem nazwisko. */
 export function orderUsersForTipsTable<T extends UserNameFields & { totalPoints?: number }>(
   users: T[]

@@ -1,5 +1,6 @@
 export {
   getDisplayName,
+  getInitials,
   getShortName,
   orderUsersForTipsTable,
   normalizeNickname,

@@ -133,12 +133,11 @@ export default function RulesPage() {
         <ul className="list-inside list-disc space-y-2 marker:text-[var(--wc-gold)]">
           <li>Ranking jest publiczny — dostępny bez logowania.</li>
           <li>
-            Typy innych graczy na <strong className="text-white/90">nadchodzące mecze są ukryte</strong>.
-            Nie widać, co ktoś obstawił, zanim mecz się nie skończy.
+            Typy innych graczy na <strong className="text-white/90">mecze jeszcze się nie rozpoczęte są ukryte</strong>.
+            Po starcie meczu (gdy typowanie jest zablokowane) widać, kto na co postawił.
           </li>
           <li>
-            Po zakończeniu meczu i wpisaniu wyniku przez admina widać typy, wynik oraz zdobyte
-            punkty.
+            Po zakończeniu meczu i wpisaniu wyniku przez admina widać także zdobyte punkty.
           </li>
           <li>Swoje typy zawsze widzisz w zakładce Mecze.</li>
         </ul>
