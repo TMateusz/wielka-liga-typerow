@@ -10,6 +10,7 @@ import LeaderboardPage from "./pages/LeaderboardPage";
 import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
 import RulesPage from "./pages/RulesPage";
+import { ChatWidget } from "./components/ChatWidget";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -87,6 +88,8 @@ export default function App() {
             <Route path="*" element={<Navigate to={user ? "/dashboard" : "/leaderboard"} replace />} />
           </Routes>
         </main>
+        {user && <ChatWidget />}
+
         <footer className="border-t border-white/10 py-4 text-center text-sm text-white/45">
           <p>Wielka Liga Typerów · FIFA World Cup 26</p>
           <p className="mt-1 text-xs text-white/30">WE ARE 26</p>

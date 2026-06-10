@@ -35,9 +35,22 @@ model User {
   predictions         Prediction[]
   matchResultHistory  MatchResultHistory[]
   matchRemindersSent  MatchReminderSent[]
+  chatMessages        ChatMessage[]
 
   @@index([totalPoints])
   @@index([role])
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  text      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([userId])
 }
 
 model MatchReminderSent {
