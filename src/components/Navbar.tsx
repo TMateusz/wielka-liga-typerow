@@ -1,6 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
 import { LogOut, Shield, Trophy, LayoutDashboard, KeyRound, LogIn, UserPlus, BookOpen } from "lucide-react";
-import { getDisplayName } from "@shared/user-display";
 import { useAuth } from "../contexts/AuthContext";
 
 const rulesLink = { to: "/rules", label: "Zasady", icon: BookOpen };
@@ -81,7 +80,7 @@ export function Navbar() {
 
               <button onClick={logout} className="btn-ghost text-sm">
                 <LogOut className="h-4 w-4" />
-                <span className="max-w-[8rem] truncate">{getDisplayName(user)}</span>
+                Wyloguj
               </button>
             </>
           ) : (

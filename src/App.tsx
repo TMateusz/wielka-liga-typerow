@@ -90,7 +90,19 @@ export default function App() {
         <footer className="border-t border-white/10 py-4 text-center text-sm text-white/45">
           <p>Wielka Liga Typerów · FIFA World Cup 26</p>
           <p className="mt-1 text-xs text-white/30">WE ARE 26</p>
-          <p className="mt-2 text-xs text-white/35">Autor: Mateusz Turowski</p>
+          <p className="mt-2 text-xs text-white/35">
+            Autor: Mateusz Turowski ·{" "}
+            <a
+              href="https://github.com/TMateusz"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[var(--wc-gold)]/80 hover:text-[var(--wc-gold)] hover:underline"
+            >
+              GitHub
+            </a>
+            {" · Discord: "}
+            <span className="text-white/50">mateusz8372</span>
+          </p>
         </footer>
       </div>
     </>

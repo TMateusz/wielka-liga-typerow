@@ -9,6 +9,7 @@ import { formatPoints, SCORING } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
 import { abbreviateTeam } from "@shared/team-abbrev";
+import { LastResultUpdateInfo, type LastResultUpdate } from "../components/LastResultUpdateInfo";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { RefreshButton } from "../components/RefreshButton";
 import { TeamWithFlag } from "../components/TeamWithFlag";
@@ -45,6 +46,7 @@ type Prediction = {
 type LeaderboardData = {
   users: LeaderboardUser[];
   playerCount: number;
+  lastResultUpdate: LastResultUpdate | null;
 };
 
 type TipsData = {
@@ -263,10 +265,12 @@ export default function LeaderboardPage() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [playerSearch, setPlayerSearch] = useState("");
   const [showMatrix, setShowMatrix] = useState(false);
+  const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
 
   const loadRanking = useCallback(async () => {
     const result = await api<LeaderboardData>("/leaderboard");
     setUsers(result.users);
+    setLastResultUpdate(result.lastResultUpdate ?? null);
     return result;
   }, []);
 
@@ -373,6 +377,8 @@ export default function LeaderboardPage() {
         </div>
         <RefreshButton loading={refreshing} onClick={() => loadLeaderboard(true)} />
       </div>
+
+      <LastResultUpdateInfo update={lastResultUpdate} />
 
       {/* Tabela punktów */}
       <div className="card-pitch overflow-hidden">

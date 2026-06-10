@@ -1,19 +1,23 @@
 import { Router } from "express";
 import { localizeMatch } from "../../shared/team-names.js";
+import { getLastResultUpdate } from "../lib/last-result-update.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
 router.get("/", requireAuth, async (req, res) => {
-  const matches = await prisma.match.findMany({
-    orderBy: { kickoffTime: "asc" },
-    include: {
-      predictions: {
-        where: { userId: req.user!.id },
+  const [matches, lastResultUpdate] = await Promise.all([
+    prisma.match.findMany({
+      orderBy: { kickoffTime: "asc" },
+      include: {
+        predictions: {
+          where: { userId: req.user!.id },
+        },
       },
-    },
-  });
+    }),
+    getLastResultUpdate(),
+  ]);
 
   const result = matches.map((m) =>
     localizeMatch({
@@ -37,7 +41,7 @@ router.get("/", requireAuth, async (req, res) => {
     })
   );
 
-  res.json(result);
+  res.json({ matches: result, lastResultUpdate });
 });
 
 export default router;

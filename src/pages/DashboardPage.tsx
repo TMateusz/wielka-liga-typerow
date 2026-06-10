@@ -3,12 +3,19 @@ import type { KnockoutSide } from "@shared/knockout";
 import { api } from "../api/client";
 import { filterMatchesByTab, getStageTabLabel, STAGE_TABS } from "@shared/match-stages";
 import { BET_WINDOW_DAYS, sortDashboardMatches } from "@shared/scoring";
+import { LastResultUpdateInfo, type LastResultUpdate } from "../components/LastResultUpdateInfo";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { RefreshButton } from "../components/RefreshButton";
 import { MatchCard, type MatchData } from "../components/MatchCard";
 
+type MatchesResponse = {
+  matches: MatchData[];
+  lastResultUpdate: LastResultUpdate | null;
+};
+
 export default function DashboardPage() {
   const [matches, setMatches] = useState<MatchData[]>([]);
+  const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
@@ -24,8 +31,9 @@ export default function DashboardPage() {
     if (silent) setRefreshing(true);
     else setLoading(true);
     try {
-      const data = await api<MatchData[]>("/matches");
-      setMatches(data);
+      const data = await api<MatchesResponse>("/matches");
+      setMatches(data.matches);
+      setLastResultUpdate(data.lastResultUpdate ?? null);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -102,6 +110,8 @@ export default function DashboardPage() {
         </div>
         <RefreshButton loading={refreshing} onClick={() => loadMatches(true)} />
       </div>
+
+      <LastResultUpdateInfo update={lastResultUpdate} />
 
       <div className="card-pitch p-2">
         <div className="flex flex-wrap gap-1.5">

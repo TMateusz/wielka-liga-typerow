@@ -62,6 +62,7 @@ export async function setMatchResult(
         awayScore,
         knockoutWinner,
         status: MatchStatus.FINISHED,
+        resultEnteredAt: new Date(),
       },
     });
   });
