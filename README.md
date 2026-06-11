@@ -18,7 +18,7 @@ Publiczna liga typerów na **Mistrzostwa Świata 2026**. Każdy może się **sam
 
 ---
 
-## Instalacja krok po kroku (dla kolegi)
+## Instalacja krok po kroku
 
 ### Krok 1 — Pobierz projekt
 
