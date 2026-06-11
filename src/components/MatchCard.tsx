@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Clock, Lock, CheckCircle2, Radio } from "lucide-react";
 import type { KnockoutSide } from "@shared/knockout";
-import { isDrawScore, isKnockoutStage } from "@shared/knockout";
+import { isKnockoutStage } from "@shared/knockout";
 import {
   BET_WINDOW_DAYS,
   formatBettingOpensAt,
@@ -90,25 +90,20 @@ export function MatchCard({ match, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const predictedDraw = isDrawScore(home, away);
-  const showKnockoutPick = knockout && predictedDraw && !locked && !finished;
+  const showKnockoutPick = knockout && !locked && !finished;
   const storedKnockoutWinner = parseStoredWinner(match.knockoutWinner);
-
-  useEffect(() => {
-    if (!predictedDraw) setKnockoutWinner(null);
-  }, [predictedDraw]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (locked) return;
     if (showKnockoutPick && !knockoutWinner) {
-      setMessage("Wybierz zwycięzcę po dogrywce");
+      setMessage("Wybierz drużynę, która awansuje");
       return;
     }
     setSaving(true);
     setMessage("");
     try {
-      await onSave(match.id, home, away, showKnockoutPick ? knockoutWinner : null);
+      await onSave(match.id, home, away, knockout ? knockoutWinner : null);
       setMessage("Typ zapisany!");
     } catch (err) {
       setMessage(err instanceof Error ? err.message : "Nie udało się zapisać typu.");

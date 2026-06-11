@@ -4,13 +4,14 @@ import { ChevronDown, ChevronUp, Lock, Medal, Search } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/display-names";
-import { isDrawScore, isKnockoutStage } from "@shared/knockout";
+import { isKnockoutStage } from "@shared/knockout";
 import { formatPoints, getPointsToneClass, isMatchLocked } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
+import { RulesUpdateBanner } from "../components/RulesUpdateBanner";
 import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
 import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
 import type { LastResultUpdate } from "../components/LastResultUpdateInfo";
@@ -36,6 +37,7 @@ type LeaderboardMatch = {
   status: string;
   kickoffTime: string;
   stage: string | null;
+  knockoutWinner: string | null;
 };
 
 type Prediction = {
@@ -389,6 +391,8 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-8">
+      <RulesUpdateBanner />
+
       {!user && (
         <div className="card-pitch flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
           <p className="text-white/70">
@@ -674,13 +678,9 @@ export default function LeaderboardPage() {
                                     Typ: {prediction!.predictedHomeScore}:
                                     {prediction!.predictedAwayScore}
                                     {isKnockoutStage(match.stage) &&
-                                      isDrawScore(
-                                        prediction!.predictedHomeScore,
-                                        prediction!.predictedAwayScore
-                                      ) &&
                                       prediction!.predictedKnockoutWinner && (
                                         <span className="ml-1 text-sm font-medium text-white/55">
-                                          →{" "}
+                                          → awans:{" "}
                                           {prediction!.predictedKnockoutWinner === "HOME"
                                             ? match.homeTeam
                                             : match.awayTeam}

@@ -29,7 +29,7 @@ async function applyScoreUpdate(
         actualAway: awayScore,
         stage: match.stage,
         predictedKnockoutWinner: parseKnockoutSide(prediction.predictedKnockoutWinner),
-        actualKnockoutWinner: knockoutWinner,
+        actualKnockoutWinner: knockoutWinner ?? parseKnockoutSide(match.knockoutWinner),
       });
 
       const diff = newPoints - oldPoints;

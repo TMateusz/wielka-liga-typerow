@@ -13,3 +13,15 @@ export function parseKnockoutSide(value: unknown): KnockoutSide | null {
   if (value === "HOME" || value === "AWAY") return value;
   return null;
 }
+
+/** Kto awansuje — przy remisie po 90′ z pola wyniku, inaczej ze wyniku regulaminowego. */
+export function resolveActualKnockoutWinner(
+  homeScore: number,
+  awayScore: number,
+  explicitWinner?: KnockoutSide | null,
+): KnockoutSide | null {
+  if (!isDrawScore(homeScore, awayScore)) {
+    return homeScore > awayScore ? "HOME" : awayScore > homeScore ? "AWAY" : null;
+  }
+  return parseKnockoutSide(explicitWinner);
+}

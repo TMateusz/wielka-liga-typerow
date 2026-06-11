@@ -17,7 +17,7 @@ export function KnockoutWinnerPick({ homeTeam, awayTeam, value, onChange, disabl
 
   return (
     <div className="w-full max-w-md space-y-2 rounded-xl border border-white/10 bg-white/5 p-3">
-      <p className="text-center text-xs text-white/55">Zwycięzca po dogrywce / karnych</p>
+      <p className="text-center text-xs text-white/55">Drużyna, która awansuje</p>
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"

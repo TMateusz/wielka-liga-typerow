@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { isDrawScore, isKnockoutStage, parseKnockoutSide } from "../../shared/knockout.js";
+import { isKnockoutStage, parseKnockoutSide } from "../../shared/knockout.js";
 import { BET_WINDOW_DAYS, canBetOnMatch, getBetBlockReason } from "../../shared/scoring.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -34,12 +34,11 @@ router.post("/", requireAuth, async (req, res) => {
   }
 
   const knockout = isKnockoutStage(match.stage);
-  const predictedDraw = isDrawScore(predictedHomeScore, predictedAwayScore);
-  const knockoutWinner = knockout && predictedDraw ? parseKnockoutSide(predictedKnockoutWinner) : null;
+  const knockoutWinner = knockout ? parseKnockoutSide(predictedKnockoutWinner) : null;
 
-  if (knockout && predictedDraw && !knockoutWinner) {
+  if (knockout && !knockoutWinner) {
     return res.status(400).json({
-      error: "Przy remisie w fazie pucharowej wybierz zwycięzcę po dogrywce",
+      error: "W fazie pucharowej wybierz drużynę, która awansuje",
     });
   }
 

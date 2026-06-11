@@ -1,4 +1,9 @@
-import { isKnockoutStage, type KnockoutSide } from "./knockout.js";
+import {
+  isKnockoutStage,
+  parseKnockoutSide,
+  resolveActualKnockoutWinner,
+  type KnockoutSide,
+} from "./knockout.js";
 
 export type ScoreInput = {
   predictedHome: number;
@@ -7,15 +12,16 @@ export type ScoreInput = {
   actualAway: number;
   stage?: string | null;
   predictedKnockoutWinner?: KnockoutSide | null;
+  /** Zwycięzca po dogrywce / karnych — tylko przy remisie po 90′ (pole w bazie). */
   actualKnockoutWinner?: KnockoutSide | null;
 };
 
 export const SCORING = {
   EXACT: 3,
   OUTCOME: 1,
-  KNOCKOUT_DRAW_WINNER: 2,
-  /** Puchar: trafiony zwycięzca, ale typ na wygraną w 90′ zamiast remisu */
-  KNOCKOUT_WINNER_AFTER_REG_DRAW: 0.5,
+  /** Faza pucharowa: trafiony awans (niezależnie od wyniku po 90′). */
+  KNOCKOUT_ADVANCE: 1,
+  KNOCKOUT_MAX: 4,
   WRONG: 0,
 } as const;
 
@@ -25,10 +31,10 @@ export function formatPoints(points: number): string {
 }
 
 export function getPointsToneClass(pts: number): string {
-  if (pts === SCORING.EXACT) return "text-green-400";
-  if (pts === SCORING.KNOCKOUT_DRAW_WINNER) return "text-sky-400";
-  if (pts === SCORING.OUTCOME) return "text-yellow-400";
-  if (pts === SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW) return "text-orange-400";
+  if (pts >= SCORING.KNOCKOUT_MAX) return "text-sky-400";
+  if (pts >= SCORING.EXACT) return "text-green-400";
+  if (pts >= SCORING.OUTCOME + SCORING.KNOCKOUT_ADVANCE) return "text-yellow-400";
+  if (pts >= SCORING.OUTCOME || pts >= SCORING.KNOCKOUT_ADVANCE) return "text-orange-400";
   return "text-red-400";
 }
 
@@ -40,48 +46,59 @@ export function getOutcome(home: number, away: number): MatchOutcome {
   return "draw";
 }
 
-export function calculatePoints(input: ScoreInput): number {
-  const { predictedHome, predictedAway, actualHome, actualAway } = input;
-
+/** Punkty za wynik po 90′ (faza grupowa i regulaminowy czas w pucharze). */
+export function calculateRegulationPoints(
+  predictedHome: number,
+  predictedAway: number,
+  actualHome: number,
+  actualAway: number,
+): number {
   if (predictedHome === actualHome && predictedAway === actualAway) {
     return SCORING.EXACT;
   }
-
-  const knockoutDraw =
-    isKnockoutStage(input.stage) && getOutcome(actualHome, actualAway) === "draw";
-
-  if (knockoutDraw) {
-    const predictedOutcome = getOutcome(predictedHome, predictedAway);
-    const predictedDraw = predictedOutcome === "draw";
-
-    if (predictedDraw) {
-      const winnerHit =
-        input.predictedKnockoutWinner &&
-        input.actualKnockoutWinner &&
-        input.predictedKnockoutWinner === input.actualKnockoutWinner;
-
-      return winnerHit ? SCORING.KNOCKOUT_DRAW_WINNER : SCORING.OUTCOME;
-    }
-
-    if (
-      input.actualKnockoutWinner &&
-      ((predictedOutcome === "home" && input.actualKnockoutWinner === "HOME") ||
-        (predictedOutcome === "away" && input.actualKnockoutWinner === "AWAY"))
-    ) {
-      return SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW;
-    }
-
-    return SCORING.WRONG;
-  }
-
   if (getOutcome(predictedHome, predictedAway) === getOutcome(actualHome, actualAway)) {
     return SCORING.OUTCOME;
   }
-
   return SCORING.WRONG;
 }
 
-/** Okno typowania — max. tyle dni przed rozpoczęciem meczu (tymczasowo 30). */
+export function isExactScorePrediction(
+  predictedHome: number,
+  predictedAway: number,
+  actualHome: number | null,
+  actualAway: number | null,
+): boolean {
+  return actualHome != null && actualAway != null && predictedHome === actualHome && predictedAway === actualAway;
+}
+
+export function calculatePoints(input: ScoreInput): number {
+  const regulation = calculateRegulationPoints(
+    input.predictedHome,
+    input.predictedAway,
+    input.actualHome,
+    input.actualAway,
+  );
+
+  if (!isKnockoutStage(input.stage)) {
+    return regulation;
+  }
+
+  const actualAdvancer = resolveActualKnockoutWinner(
+    input.actualHome,
+    input.actualAway,
+    input.actualKnockoutWinner,
+  );
+  const predictedAdvancer = parseKnockoutSide(input.predictedKnockoutWinner);
+
+  const advanceBonus =
+    actualAdvancer && predictedAdvancer && actualAdvancer === predictedAdvancer
+      ? SCORING.KNOCKOUT_ADVANCE
+      : 0;
+
+  return regulation + advanceBonus;
+}
+
+/** Okno typowania — 72 h (3 dni) przed rozpoczęciem meczu. */
 export const BET_WINDOW_DAYS = 3;
 export const BET_WINDOW_MS = BET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 
@@ -111,7 +128,7 @@ export type BetBlockReason = "started" | "too_early" | "not_pending";
 export function getBetBlockReason(
   status: string,
   kickoffTime: Date,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): BetBlockReason | null {
   if (status !== "PENDING") return "not_pending";
   if (isMatchLocked(kickoffTime, now)) return "started";
@@ -122,7 +139,7 @@ export function getBetBlockReason(
 export function canBetOnMatch(
   status: string,
   kickoffTime: Date,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): boolean {
   return getBetBlockReason(status, kickoffTime, now) === null;
 }
@@ -133,7 +150,7 @@ const NEXT_ROUND_MS = BET_WINDOW_DAYS * 24 * 60 * 60 * 1000;
 export function isInNextBettingRound(
   status: string,
   kickoffTime: Date,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): boolean {
   if (!canBetOnMatch(status, kickoffTime, now)) return false;
   return kickoffTime.getTime() - now.getTime() <= NEXT_ROUND_MS;
@@ -141,7 +158,7 @@ export function isInNextBettingRound(
 
 export function getDashboardMatchSortRank(
   match: { status: string; kickoffTime: Date | string },
-  now: Date = new Date()
+  now: Date = new Date(),
 ): number {
   if (match.status === "FINISHED") return 2;
   if (canBetOnMatch(match.status, new Date(match.kickoffTime), now)) return 0;
@@ -150,13 +167,13 @@ export function getDashboardMatchSortRank(
 
 export function sortDashboardMatches<T extends { status: string; kickoffTime: Date | string }>(
   matches: T[],
-  options: { finishedTab?: boolean; now?: Date } = {}
+  options: { finishedTab?: boolean; now?: Date } = {},
 ): T[] {
   const { finishedTab = false, now = new Date() } = options;
 
   if (finishedTab) {
     return [...matches].sort(
-      (a, b) => new Date(b.kickoffTime).getTime() - new Date(a.kickoffTime).getTime()
+      (a, b) => new Date(b.kickoffTime).getTime() - new Date(a.kickoffTime).getTime(),
     );
   }
 

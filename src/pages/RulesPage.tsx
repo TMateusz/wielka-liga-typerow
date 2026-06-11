@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
+import { RULES_LAST_UPDATED_AT, formatRulesLastUpdated } from "@shared/rules-meta";
 import { BET_WINDOW_DAYS, SCORING, formatPoints } from "@shared/scoring";
-import { BookOpen, Clock, Lock, Shield, Trophy, Users } from "lucide-react";
+import { BookOpen, Clock, Lock, MessageSquare, Radio, Shield, Trophy, Users } from "lucide-react";
 
 function RuleSection({
   icon: Icon,
@@ -33,129 +34,193 @@ function PointRow({ points, label }: { points: number; label: string }) {
   );
 }
 
+function ExampleBox({ children }: { children: ReactNode }) {
+  return (
+    <div className="mt-3 space-y-2 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-white/75">
+      {children}
+    </div>
+  );
+}
+
 export default function RulesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="wc-page-title">Zasady gry</h2>
+        <h2 className="wc-page-title">Regulamin: Wielka Liga Typerów – Mundial 2026</h2>
         <p className="mt-2 max-w-2xl text-white/60">
-          Wszystko, co musisz wiedzieć o typowaniu w Wielkiej Lidze Typerów na Mistrzostwa Świata
-          2026.
+          Wszystko, co musisz wiedzieć, by ograć znajomych i wygrać ligę.
+        </p>
+        <p className="mt-3 text-sm text-white/50">
+          Ostatnia modyfikacja:{" "}
+          <time dateTime={RULES_LAST_UPDATED_AT.toISOString()} className="text-white/70">
+            {formatRulesLastUpdated()}
+          </time>
+          {" · "}
+          <span className="font-medium text-[var(--wc-gold)]/90">
+            To jest ostateczna wersja regulaminu.
+          </span>
         </p>
       </div>
 
-      <RuleSection icon={Trophy} title="Cel gry">
+      <RuleSection icon={Trophy} title="Cel gry i stawka">
         <p>
-          Typujesz wyniki meczów MŚ 2026 i zbierasz punkty. Kto ma ich najwięcej po turnieju —
-          wygrywa ligę. Ranking jest publiczny — każdy może go podejrzeć bez logowania.
+          Zasada jest prosta: typujesz wyniki meczów Mistrzostw Świata 2026 i zbierasz punkty.
+          Wygrywa ten, kto po finale zgromadzi ich najwięcej. Nasz ranking jest ogólnodostępny —
+          każdy może na bieżąco śledzić rywalizację w tabeli.
+        </p>
+        <p className="font-medium text-white/85">
+          O co gramy? Rywalizujemy o wieczne uznanie, zaszczytny tytuł Króla Typerów i oczywiście
+          o darmowe piwo!
         </p>
       </RuleSection>
 
-      <RuleSection icon={BookOpen} title="Punktacja">
-        <p>Za każdy mecz możesz zdobyć:</p>
+      <RuleSection icon={BookOpen} title="System punktacji">
+        <p className="font-medium text-white/85">Faza grupowa (maks. {SCORING.EXACT} pkt za mecz)</p>
+        <p>
+          W fazie grupowej typujemy ostateczny wynik spotkania. Punktacja wygląda następująco:
+        </p>
         <ul className="mt-2 space-y-2">
           <PointRow
             points={SCORING.EXACT}
-            label="Dokładny wynik — trafiłeś obie bramki (np. typ 2:1, wynik 2:1)."
+            label="Dokładny wynik — trafiasz idealnie liczbę bramek obu drużyn (np. obstawiasz 2:1, mecz kończy się 2:1)."
           />
           <PointRow
             points={SCORING.OUTCOME}
-            label="Poprawny wynik — dobrałeś zwycięzcę lub remis, ale bez dokładnego wyniku bramkowego (np. typ 1:0, wynik 3:1)."
+            label="Poprawne rozstrzygnięcie — wskazujesz właściwego zwycięzcę lub poprawnie przewidujesz remis, ale mylisz się w dokładnym wyniku bramkowym (np. obstawiasz 1:0, mecz kończy się 3:1)."
           />
           <PointRow
             points={SCORING.WRONG}
-            label="Błędny typ — zły zwycięzca lub zły remis."
+            label="Błędny typ — nietrafiony zwycięzca i brak remisu."
           />
         </ul>
-        <p className="mt-3 font-medium text-white/85">Faza pucharowa (1/16, ćwierćfinały itd.)</p>
+
+        <p className="mt-4 font-medium text-white/85">
+          Faza pucharowa (maks. {SCORING.KNOCKOUT_MAX} pkt za mecz)
+        </p>
         <p>
-          Przy remisie po 90 minutach wskaż też, kto wygra po dogrywce. Wtedy obowiązują dodatkowe
-          zasady:
+          W meczach od 1/16 finału, gdzie przegrywający odpada, typujesz{" "}
+          <strong className="text-white/90">wynik w regulaminowym czasie gry</strong> oraz{" "}
+          <strong className="text-white/90">drużynę, która awansuje</strong>.
+        </p>
+
+        <p className="mt-3 font-medium text-white/80">1. Punkty za regulaminowy czas gry (do 90. minuty)</p>
+        <p>
+          Liczy się wyłącznie wynik po 90 minutach (wraz z doliczonym czasem, przed dogrywką).
+          Punktacja jak w fazie grupowej:
         </p>
         <ul className="mt-2 space-y-2">
-          <PointRow
-            points={SCORING.KNOCKOUT_DRAW_WINNER}
-            label="Typujesz remis i trafiasz zwycięzcę po dogrywce."
-          />
+          <PointRow points={SCORING.EXACT} label="Dokładny wynik do 90. minuty." />
           <PointRow
             points={SCORING.OUTCOME}
-            label="Typujesz remis, ale nie trafiasz zwycięzcy po dogrywce."
+            label="Poprawne rozstrzygnięcie (zwycięzca lub remis) do 90. minuty."
           />
-          <PointRow
-            points={SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW}
-            label="Typujesz wygraną jednej ze stron w 90. minucie, a w rzeczywistości był remis — ale dobrałeś, kto wygrał po dogrywce."
-          />
+          <PointRow points={SCORING.WRONG} label="Błędny typ na 90 minut." />
+        </ul>
+
+        <p className="mt-3 font-medium text-white/80">2. Bonus za awans (+{SCORING.KNOCKOUT_ADVANCE} pkt)</p>
+        <p>
+          Niezależnie od typu na 90 minut, otrzymujesz dodatkowy +{SCORING.KNOCKOUT_ADVANCE} pkt za
+          poprawne wskazanie drużyny, która przejdzie do kolejnej rundy (w regulaminowym czasie,
+          po dogrywce lub w rzutach karnych).
+        </p>
+
+        <ExampleBox>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--wc-gold)]">
+            Przykłady
+          </p>
+          <p className="text-white/55">
+            Mecz kończy się 1:1 w 90. minucie, po rzutach karnych awansuje Brazylia:
+          </p>
+          <ul className="list-inside list-disc space-y-1 marker:text-[var(--wc-gold)]">
+            <li>
+              Typ: 1:1, awans Brazylia → <strong className="text-white/90">4 pkt</strong> (3 + 1)
+            </li>
+            <li>
+              Typ: 0:0, awans Francja → <strong className="text-white/90">1 pkt</strong> (1 za remis,
+              0 za awans)
+            </li>
+            <li>
+              Typ: 2:0 dla Brazylii, awans Brazylia → <strong className="text-white/90">1 pkt</strong>{" "}
+              (0 za wynik, 1 za awans)
+            </li>
+          </ul>
+        </ExampleBox>
+
+        <p className="mt-4 font-medium text-white/85">Remisy w tabeli końcowej</p>
+        <p>
+          Jeśli po finale dwóch lub więcej graczy ma taką samą liczbę punktów, o wyższym miejscu
+          decyduje liczba trafionych <strong className="text-white/90">dokładnych wyników</strong>{" "}
+          (zdobytych „trójek”). Kto miał lepszy nos do idealnego typowania, ten wygrywa ligę.
+        </p>
+      </RuleSection>
+
+      <RuleSection icon={Clock} title="Kiedy można typować?">
+        <ul className="list-inside list-disc space-y-2 marker:text-[var(--wc-gold)]">
+          <li>
+            <strong className="text-white/90">Otwarcie okna:</strong> typowanie odblokowuje się na{" "}
+            {BET_WINDOW_DAYS * 24} godzin ({BET_WINDOW_DAYS} dni) przed rozpoczęciem meczu.
+            Wcześniej nie ma możliwości oddania typu.
+          </li>
+          <li>
+            <strong className="text-white/90">Edycja typów:</strong> do startu spotkania możesz
+            dowolnie zmieniać przewidywania.
+          </li>
+          <li>
+            <strong className="text-white/90">Koniec czasu:</strong> typowanie zostaje
+            bezpowrotnie zablokowane w momencie planowanego pierwszego gwizdka.
+          </li>
         </ul>
       </RuleSection>
 
-      <RuleSection icon={Clock} title="Kiedy można typować">
+      <RuleSection icon={Lock} title="Widoczność typów (zero ściągania!)">
         <ul className="list-inside list-disc space-y-2 marker:text-[var(--wc-gold)]">
+          <li>Zanim mecz się rozpocznie, typy innych graczy są ściśle tajne.</li>
           <li>
-            Typ możesz złożyć lub zmienić najwcześniej{" "}
-            <strong className="text-white/90">{BET_WINDOW_DAYS} dni przed</strong> rozpoczęciem
-            meczu. Wcześniej mecz jest niedostępny do typowania.
+            Karty odsłaniamy wraz z pierwszym gwizdkiem — gdy typowanie jest zablokowane, widać
+            decyzje wszystkich graczy.
           </li>
-          <li>
-            W oknie typowania możesz <strong className="text-white/90">edytować swój typ</strong>{" "}
-            dowolną liczbę razy — do momentu blokady.
-          </li>
-          <li>
-            W <strong className="text-white/90">momencie rozpoczęcia meczu</strong> (czas
-            rozpoczęcia wg terminarza) typowanie jest{" "}
-            <strong className="text-white/90">zablokowane</strong>. Nie da się już nic dopisać ani
-            poprawić.
-          </li>
+          <li>Swoje własne typy zawsze widzisz w zakładce Mecze.</li>
         </ul>
       </RuleSection>
 
-      <RuleSection icon={Shield} title="Wyniki i naliczanie punktów">
+      <RuleSection icon={Radio} title="Wyniki i tabela na żywo (LIVE)">
+        <p>
+          Wyniki meczów, zdobyte punkty oraz główna tabela rankingowa są aktualizowane na żywo.
+          Wraz z każdą zmianą wyniku na boisku system przelicza punkty — możesz śledzić
+          przetasowania w rankingu w trakcie spotkania.
+        </p>
+        <p className="mt-2 text-white/55">
+          Administrator zastrzega sobie prawo do ręcznej korekty wyniku po zakończeniu meczu w
+          przypadku błędu systemu lub pomyłki w transmisji danych. Po korekcie punkty wszystkich
+          graczy zostaną automatycznie przeliczone.
+        </p>
+      </RuleSection>
+
+      <RuleSection icon={Users} title="Rejestracja i konto">
         <ul className="list-inside list-disc space-y-2 marker:text-[var(--wc-gold)]">
+          <li>Liga jest zamknięta — dołączenie wymaga kodu zaproszenia od organizatora.</li>
           <li>
-            Po zakończeniu meczu <strong className="text-white/90">administrator wpisuje wynik</strong>{" "}
-            w panelu admina.
+            Konto zakładasz samodzielnie. Wymagane jest podanie prawdziwego imienia i nazwiska —
+            pod nimi figurować będziesz w publicznym rankingu.
           </li>
-          <li>
-            Dopiero wtedy punkty są <strong className="text-white/90">naliczane</strong> i
-            aktualizują się w rankingu.
-          </li>
-          <li>
-            Jeśli admin poprawi wynik, punkty są <strong className="text-white/90">przeliczane</strong>{" "}
-            automatycznie.
-          </li>
-          <li>
-            Do czasu zatwierdzenia wyniku przez admina mecz nie daje punktów — nawet jeśli znasz już
-            wynik z telewizji.
-          </li>
+          <li>Dodatkowo ustalasz nick oraz hasło. Hasło możesz zmienić w panelu po zalogowaniu.</li>
         </ul>
       </RuleSection>
 
-      <RuleSection icon={Users} title="Ranking i widoczność typów">
-        <ul className="list-inside list-disc space-y-2 marker:text-[var(--wc-gold)]">
-          <li>Ranking jest publiczny — dostępny bez logowania.</li>
-          <li>
-            Typy innych graczy na <strong className="text-white/90">mecze jeszcze się nie rozpoczęte są ukryte</strong>.
-            Po starcie meczu (gdy typowanie jest zablokowane) widać, kto na co postawił.
-          </li>
-          <li>
-            Po zakończeniu meczu i wpisaniu wyniku przez admina widać także zdobyte punkty.
-          </li>
-          <li>Swoje typy zawsze widzisz w zakładce Mecze.</li>
-        </ul>
-      </RuleSection>
-
-      <RuleSection icon={Lock} title="Rejestracja i konto">
-        <ul className="list-inside list-disc space-y-2 marker:text-[var(--wc-gold)]">
-          <li>Dołączenie do ligi wymaga kodu zaproszenia od organizatora.</li>
-          <li>Rejestrujesz się samodzielnie — imię, nazwisko, nick i hasło.</li>
-          <li>Hasło możesz zmienić w zakładce Hasło po zalogowaniu.</li>
-        </ul>
+      <RuleSection icon={MessageSquare} title="Czat (kibicuj i dyskutuj)">
+        <p>
+          W aplikacji dostępny jest wewnętrzny czat dla wszystkich uczestników ligi. Zachęcamy do
+          wspólnego przeżywania emocji i komentowania spotkań — prosimy jednak o kulturę i szacunek
+          wobec innych typerów. Sportowe docinki są super, ale trzymajmy się granic dobrego smaku!
+        </p>
       </RuleSection>
 
       <div className="card-pitch border-[var(--wc-gold)]/20 bg-[var(--wc-gold)]/5 p-4 text-sm text-white/65">
         <p className="font-medium text-[var(--wc-gold)]">W skrócie</p>
         <p className="mt-2">
-          Typuj max. {BET_WINDOW_DAYS} dni przed meczem → edytuj do gwizdka → admin wpisuje wynik →
-          dostajesz punkty → wspinasz się w rankingu.
+          ⏳ Okno otwiera się na {BET_WINDOW_DAYS * 24}h przed meczem → 🔄 Edytujesz do pierwszego
+          gwizdka → 💬 Dyskutujesz na czacie → ⚽ Śledzisz tabelę LIVE w trakcie meczu → 📈
+          Zgarniasz punkty, pniesz się w rankingu i wygrywasz piwo!
         </p>
       </div>
     </div>

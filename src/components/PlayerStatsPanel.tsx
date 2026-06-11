@@ -5,6 +5,9 @@ import { TeamWithFlag } from "./TeamWithFlag";
 type Prediction = {
   userId: string;
   matchId: string;
+  predictedHomeScore: number;
+  predictedAwayScore: number;
+  predictedKnockoutWinner: string | null;
   pointsEarned: number | null;
 };
 
@@ -14,6 +17,9 @@ type Match = {
   awayTeam: string;
   stage: string | null;
   status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  knockoutWinner: string | null;
 };
 
 type Props = {
@@ -25,13 +31,13 @@ type Props = {
 export function PlayerStatsPanel({ userId, predictions, matches }: Props) {
   const stats = computePlayerStats(
     predictions.filter((p) => p.userId === userId),
-    matches
+    matches,
   );
 
   if (stats.settledPredictions === 0) {
     return (
       <p className="mb-3 text-sm text-white/45">
-        Brak rozliczonych typów — statystyki pojawią się po wpisaniu wyników przez admina.
+        Brak rozliczonych typów — statystyki pojawią się po wpisaniu wyników.
       </p>
     );
   }
@@ -46,25 +52,19 @@ export function PlayerStatsPanel({ userId, predictions, matches }: Props) {
         <p className="text-xs text-white/40">{stats.settledPredictions} rozliczonych typów</p>
       </div>
       <div>
-        <p className="text-white/45">Punkty z trafień</p>
+        <p className="text-white/45">Trafienia</p>
         <p className="text-white/80">
-          <span className="text-green-400">+3: {stats.exactHits}</span>
+          <span className="text-green-400">Dokładne: {stats.exactHits}</span>
           {" · "}
-          <span className="text-yellow-400">+1: {stats.outcomeHits}</span>
-          {stats.knockoutDrawWinnerHits > 0 && (
+          <span className="text-yellow-400">Wynik: {stats.outcomeHits}</span>
+          {stats.advanceHits > 0 && (
             <>
               {" · "}
-              <span className="text-sky-400">+2: {stats.knockoutDrawWinnerHits}</span>
-            </>
-          )}
-          {stats.knockoutHalfHits > 0 && (
-            <>
-              {" · "}
-              <span className="text-orange-400">+0,5: {stats.knockoutHalfHits}</span>
+              <span className="text-sky-400">Awans: {stats.advanceHits}</span>
             </>
           )}
           {" · "}
-          <span className="text-red-400">0: {stats.wrongHits}</span>
+          <span className="text-red-400">Pudła: {stats.wrongHits}</span>
         </p>
       </div>
       {stats.bestMatch && (

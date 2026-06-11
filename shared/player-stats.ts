@@ -1,12 +1,16 @@
-import { SCORING } from "./scoring.js";
+import {
+  isKnockoutStage,
+  parseKnockoutSide,
+  resolveActualKnockoutWinner,
+} from "./knockout.js";
+import { calculateRegulationPoints, isExactScorePrediction, SCORING } from "./scoring.js";
 
 export type PlayerStats = {
   settledPredictions: number;
   hitRatePercent: number | null;
   exactHits: number;
   outcomeHits: number;
-  knockoutDrawWinnerHits: number;
-  knockoutHalfHits: number;
+  advanceHits: number;
   wrongHits: number;
   bestMatch: {
     matchId: string;
@@ -19,6 +23,9 @@ export type PlayerStats = {
 
 type PredictionRow = {
   matchId: string;
+  predictedHomeScore: number;
+  predictedAwayScore: number;
+  predictedKnockoutWinner: string | null;
   pointsEarned: number | null;
 };
 
@@ -28,36 +35,69 @@ type MatchRow = {
   awayTeam: string;
   stage: string | null;
   status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  knockoutWinner: string | null;
 };
 
 export function computePlayerStats(
   predictions: PredictionRow[],
-  matches: MatchRow[]
+  matches: MatchRow[],
 ): PlayerStats {
   const matchMap = new Map(matches.map((m) => [m.id, m]));
   let exactHits = 0;
   let outcomeHits = 0;
-  let knockoutDrawWinnerHits = 0;
-  let knockoutHalfHits = 0;
+  let advanceHits = 0;
   let wrongHits = 0;
   let bestMatch: PlayerStats["bestMatch"] = null;
 
   for (const prediction of predictions) {
     const match = matchMap.get(prediction.matchId);
-    if (!match || match.status !== "FINISHED" || prediction.pointsEarned == null) continue;
+    if (
+      !match ||
+      match.status !== "FINISHED" ||
+      prediction.pointsEarned == null ||
+      match.homeScore == null ||
+      match.awayScore == null
+    ) {
+      continue;
+    }
 
     const points = prediction.pointsEarned;
 
-    if (points >= SCORING.EXACT - 1e-9 && points <= SCORING.EXACT + 1e-9) exactHits++;
-    else if (points >= SCORING.KNOCKOUT_DRAW_WINNER - 1e-9 && points <= SCORING.KNOCKOUT_DRAW_WINNER + 1e-9)
-      knockoutDrawWinnerHits++;
-    else if (points >= SCORING.OUTCOME - 1e-9 && points <= SCORING.OUTCOME + 1e-9) outcomeHits++;
-    else if (
-      points >= SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW - 1e-9 &&
-      points <= SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW + 1e-9
-    )
-      knockoutHalfHits++;
-    else wrongHits++;
+    if (
+      isExactScorePrediction(
+        prediction.predictedHomeScore,
+        prediction.predictedAwayScore,
+        match.homeScore,
+        match.awayScore,
+      )
+    ) {
+      exactHits++;
+    } else if (
+      calculateRegulationPoints(
+        prediction.predictedHomeScore,
+        prediction.predictedAwayScore,
+        match.homeScore,
+        match.awayScore,
+      ) === SCORING.OUTCOME
+    ) {
+      outcomeHits++;
+    }
+
+    if (isKnockoutStage(match.stage)) {
+      const actualAdvancer = resolveActualKnockoutWinner(
+        match.homeScore,
+        match.awayScore,
+        parseKnockoutSide(match.knockoutWinner),
+      );
+      const predictedAdvancer = parseKnockoutSide(prediction.predictedKnockoutWinner);
+      if (actualAdvancer && predictedAdvancer && actualAdvancer === predictedAdvancer) {
+        advanceHits++;
+      }
+    }
+
+    if (points <= SCORING.WRONG + 1e-9) wrongHits++;
 
     if (!bestMatch || points > bestMatch.points) {
       bestMatch = {
@@ -70,8 +110,11 @@ export function computePlayerStats(
     }
   }
 
-  const settledPredictions =
-    exactHits + outcomeHits + knockoutDrawWinnerHits + knockoutHalfHits + wrongHits;
+  const settledPredictions = predictions.filter((p) => {
+    const m = matchMap.get(p.matchId);
+    return m?.status === "FINISHED" && p.pointsEarned != null;
+  }).length;
+
   const hits = settledPredictions - wrongHits;
   const hitRatePercent =
     settledPredictions > 0 ? Math.round((hits / settledPredictions) * 100) : null;
@@ -81,8 +124,7 @@ export function computePlayerStats(
     hitRatePercent,
     exactHits,
     outcomeHits,
-    knockoutDrawWinnerHits,
-    knockoutHalfHits,
+    advanceHits,
     wrongHits,
     bestMatch,
   };

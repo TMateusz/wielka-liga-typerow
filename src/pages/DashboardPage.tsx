@@ -10,6 +10,7 @@ import { UpcomingBetsStrip } from "../components/UpcomingBetsStrip";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { RefreshButton } from "../components/RefreshButton";
 import { MatchCard, type MatchData } from "../components/MatchCard";
+import { RulesUpdateBanner } from "../components/RulesUpdateBanner";
 
 type MatchesResponse = {
   matches: MatchData[];
@@ -111,6 +112,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      <RulesUpdateBanner />
+
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="wc-page-title">Mecze</h2>

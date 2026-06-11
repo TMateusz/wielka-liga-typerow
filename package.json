@@ -20,6 +20,10 @@
     "db:reset": "tsx --env-file=.env scripts/reset-for-production.ts",
     "polish:teams": "tsx --env-file=.env scripts/polish-teams.ts",
     "simulate:live": "tsx scripts/simulate-live-scoring.ts",
+    "test:email": "tsx --env-file=.env scripts/test-email.ts",
+    "test:scoring": "tsx scripts/test-scoring.ts",
+    "simulate:knockout": "tsx scripts/simulate-knockout-scoring.ts",
+    "test:points": "tsx scripts/test-all-points.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
