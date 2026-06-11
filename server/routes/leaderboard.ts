@@ -5,7 +5,9 @@ import { isExactScorePrediction } from "../../shared/scoring.js";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
 import { getTournamentProgress } from "../lib/tournament-progress.js";
+import { countOnlineUsers, ONLINE_THRESHOLD_MS } from "../../shared/online-presence.js";
 import { optionalAuth } from "../middleware/auth.js";
+import { touchUserActivity } from "../lib/user-activity.js";
 import { prisma } from "../lib/prisma.js";
 
 const router = Router();
@@ -71,7 +73,9 @@ const matchSelect = {
 } as const;
 
 /** Lekki ranking — sama klasyfikacja graczy. */
-router.get("/", async (_req, res) => {
+router.get("/", optionalAuth, async (req, res) => {
+  if (req.user) void touchUserActivity(req.user.id);
+
   const [rawUsers, lastResultUpdate, tournamentProgress] = await Promise.all([
     prisma.user.findMany({
       where: { role: UserRole.USER },
@@ -91,9 +95,12 @@ router.get("/", async (_req, res) => {
     return nameA.localeCompare(nameB, "pl");
   });
 
+  const now = new Date();
   res.json({
     users: users.map(serializeUser),
     playerCount: users.length,
+    onlineCount: countOnlineUsers(users, now),
+    onlineThresholdMinutes: ONLINE_THRESHOLD_MS / 60_000,
     lastResultUpdate,
     tournamentProgress,
   });

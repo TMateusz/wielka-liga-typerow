@@ -24,7 +24,6 @@
     "test:scoring": "tsx scripts/test-scoring.ts",
     "simulate:knockout": "tsx scripts/simulate-knockout-scoring.ts",
     "test:points": "tsx scripts/test-all-points.ts",
-    "test:prelaunch": "tsx scripts/pre-launch-check.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

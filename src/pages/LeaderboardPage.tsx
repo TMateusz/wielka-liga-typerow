@@ -8,6 +8,7 @@ import { isKnockoutStage } from "@shared/knockout";
 import { formatPoints, getPointsToneClass, isMatchLocked } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N } from "@shared/league-limits";
+import { countOnlineUsers, formatOnlineCount } from "@shared/online-presence";
 import { computeRankChange } from "@shared/rank-progress";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
@@ -54,6 +55,8 @@ type Prediction = {
 type LeaderboardData = {
   users: LeaderboardUser[];
   playerCount: number;
+  onlineCount?: number;
+  onlineThresholdMinutes?: number;
   lastResultUpdate: LastResultUpdate | null;
   tournamentProgress: TournamentProgress | null;
 };
@@ -396,6 +399,11 @@ export default function LeaderboardPage() {
 
   const matrixEnabled = showMatrix && users.length > 0;
 
+  const onlineCount = useMemo(
+    () => (users.length > 0 ? countOnlineUsers(users, now) : 0),
+    [users, now],
+  );
+
   const topRankChanges = useMemo(() => {
     const changes = new Map<string, number | null>();
     users.slice(0, RANKING_TOP_N).forEach((u, index) => {
@@ -501,6 +509,19 @@ export default function LeaderboardPage() {
           </tbody>
         </table>
       </div>
+
+      {users.length > 0 && (
+        <p className="flex items-center gap-2 text-sm text-white/50">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-60" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-green-500" />
+          </span>
+          <span>
+            {formatOnlineCount(onlineCount)}
+            <span className="text-white/35"> · aktywni w ostatnich 5 min</span>
+          </span>
+        </p>
+      )}
 
       {/* Macierz typów — top 10 + Ty (jeśli poza top 10) */}
       {users.length > 0 && (
