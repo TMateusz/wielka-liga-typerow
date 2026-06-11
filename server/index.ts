@@ -13,7 +13,7 @@ import calendarRoutes from "./routes/calendar.js";
 import { ensureSeeded } from "./lib/ensure-seeded.js";
 import { tuneSqlite } from "./lib/sqlite-tuning.js";
 import { startReminderScheduler } from "./lib/reminder-scheduler.js";
-import { startSyncScheduler } from "./lib/sync-scheduler.js";
+import { startLiveSyncScheduler } from "./lib/live-sync-scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
@@ -59,7 +59,7 @@ async function start() {
 
   app.listen(PORT, () => {
     console.log(`Serwer API działa na porcie ${PORT}`);
-    startSyncScheduler();
+    startLiveSyncScheduler();
     startReminderScheduler();
   });
 }

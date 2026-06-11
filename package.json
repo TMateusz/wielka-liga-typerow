@@ -19,6 +19,7 @@
     "seed:demo": "tsx --env-file=.env scripts/seed-demo-players.ts",
     "db:reset": "tsx --env-file=.env scripts/reset-for-production.ts",
     "polish:teams": "tsx --env-file=.env scripts/polish-teams.ts",
+    "simulate:live": "tsx scripts/simulate-live-scoring.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

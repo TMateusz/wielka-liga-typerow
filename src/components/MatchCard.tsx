@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Clock, Lock, CheckCircle2 } from "lucide-react";
+import { Clock, Lock, CheckCircle2, Radio } from "lucide-react";
 import type { KnockoutSide } from "@shared/knockout";
 import { isDrawScore, isKnockoutStage } from "@shared/knockout";
 import {
   BET_WINDOW_DAYS,
   formatBettingOpensAt,
   formatPoints,
+  getPointsToneClass,
   getBetBlockReason,
   isInNextBettingRound,
 } from "@shared/scoring";
@@ -58,6 +59,8 @@ export function MatchCard({ match, onSave }: Props) {
   const [now, setNow] = useState(() => new Date());
   const kickoff = new Date(match.kickoffTime);
   const finished = match.status === "FINISHED";
+  const live = match.status === "LIVE";
+  const showScore = finished || live;
   const knockout = isKnockoutStage(match.stage);
   const blockReason = finished ? null : getBetBlockReason(match.status, kickoff, now);
   const locked = blockReason !== null;
@@ -125,12 +128,22 @@ export function MatchCard({ match, onSave }: Props) {
     <article
       id={`match-${match.id}`}
       className={`card-pitch p-4 sm:p-5 ${
-        inNextRound ? "ring-1 ring-[var(--wc-gold)]/35 border-[var(--wc-gold)]/25" : ""
+        live
+          ? "ring-1 ring-red-500/40 border-red-500/25"
+          : inNextRound
+            ? "ring-1 ring-[var(--wc-gold)]/35 border-[var(--wc-gold)]/25"
+            : ""
       }`}
     >
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-sm text-white/60">
         <span className="flex flex-wrap items-center gap-2">
           {match.stage ?? "Mecz"}
+          {live && (
+            <span className="inline-flex items-center gap-1 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-300">
+              <Radio className="h-3 w-3 animate-pulse" />
+              Na żywo
+            </span>
+          )}
           {inNextRound && (
             <span className="rounded bg-[var(--wc-gold)]/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--wc-gold)]">
               Kolejka kolejna
@@ -155,8 +168,12 @@ export function MatchCard({ match, onSave }: Props) {
             flagWidth={28}
             nameClassName="text-lg font-bold sm:text-xl"
           />
-          {finished && (
-            <p className="text-3xl font-black text-[var(--gold)]">{match.homeScore}</p>
+          {showScore && match.homeScore != null && (
+            <p
+              className={`text-3xl font-black ${live ? "text-red-300" : "text-[var(--gold)]"}`}
+            >
+              {match.homeScore}
+            </p>
           )}
         </div>
         <span className="text-white/40">vs</span>
@@ -167,8 +184,12 @@ export function MatchCard({ match, onSave }: Props) {
             flagWidth={28}
             nameClassName="text-lg font-bold sm:text-xl"
           />
-          {finished && (
-            <p className="text-3xl font-black text-[var(--gold)]">{match.awayScore}</p>
+          {showScore && match.awayScore != null && (
+            <p
+              className={`text-3xl font-black ${live ? "text-red-300" : "text-[var(--gold)]"}`}
+            >
+              {match.awayScore}
+            </p>
           )}
         </div>
       </div>
@@ -179,14 +200,29 @@ export function MatchCard({ match, onSave }: Props) {
         </p>
       )}
 
-      {finished && match.prediction?.pointsEarned != null && (
-        <p className="mb-3 flex items-center justify-center gap-1 text-sm text-[var(--gold)]">
-          <CheckCircle2 className="h-4 w-4" />
-          Zdobyte punkty: {formatPoints(match.prediction.pointsEarned)}
+      {showScore && match.prediction?.pointsEarned != null && (
+        <p
+          className={`mb-3 flex items-center justify-center gap-1 text-sm ${
+            live ? getPointsToneClass(match.prediction.pointsEarned) : "text-[var(--gold)]"
+          }`}
+        >
+          {live ? (
+            <Radio className="h-4 w-4 animate-pulse" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" />
+          )}
+          {live ? "Punkty na żywo" : "Zdobyte punkty"}: {formatPoints(match.prediction.pointsEarned)}
+          {live && <span className="text-white/45">(mogą się zmienić)</span>}
         </p>
       )}
 
-      {!finished && (
+      {live && match.prediction?.pointsEarned == null && (
+        <p className="mb-3 text-center text-sm text-red-300/80">
+          Mecz trwa — wynik i punkty odświeżają się co minutę.
+        </p>
+      )}
+
+      {!finished && !live && (
         <form onSubmit={handleSubmit} className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
             <input

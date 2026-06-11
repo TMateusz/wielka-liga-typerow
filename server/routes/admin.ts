@@ -11,6 +11,10 @@ import {
   importWorldCupFixtures,
   syncMatchResults,
 } from "../lib/sync-service.js";
+import {
+  getWorldCup2026SyncStatus,
+  syncWorldCup2026Live,
+} from "../lib/worldcup2026-sync.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = Router();
@@ -18,7 +22,21 @@ const router = Router();
 router.use(requireAuth, requireAdmin);
 
 router.get("/sync/status", (_req, res) => {
-  res.json(getSyncStatus());
+  res.json({
+    apiFootball: getSyncStatus(),
+    worldCup2026: getWorldCup2026SyncStatus(),
+  });
+});
+
+router.post("/sync/live", async (_req, res) => {
+  try {
+    const result = await syncWorldCup2026Live();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({
+      error: e instanceof Error ? e.message : "Błąd synchronizacji live",
+    });
+  }
 });
 
 router.post("/sync/import", async (_req, res) => {

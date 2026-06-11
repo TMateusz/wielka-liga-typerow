@@ -3,6 +3,7 @@ import type { KnockoutSide } from "@shared/knockout";
 import { api } from "../api/client";
 import { filterMatchesByTab, getStageTabLabel, STAGE_TABS } from "@shared/match-stages";
 import { BET_WINDOW_DAYS, sortDashboardMatches } from "@shared/scoring";
+import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
 import type { LastResultUpdate } from "../components/LastResultUpdateInfo";
 import { UpcomingBetsStrip } from "../components/UpcomingBetsStrip";
@@ -48,6 +49,12 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadMatches();
   }, [loadMatches]);
+
+  useEffect(() => {
+    if (!hasMatchesNeedingLivePoll(matches)) return;
+    const id = setInterval(() => void loadMatches(true), LIVE_UI_POLL_MS);
+    return () => clearInterval(id);
+  }, [matches, loadMatches]);
 
   async function savePrediction(
     matchId: string,

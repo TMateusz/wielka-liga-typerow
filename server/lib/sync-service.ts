@@ -9,7 +9,7 @@ import {
 } from "./api-football.js";
 import type { ApiFixtureItem } from "./api-football.js";
 import { extractScores, mapApiStatus, mapFixtureToMatchData } from "./fixture-mapper.js";
-import { setMatchResult } from "./match-service.js";
+import { setMatchResult, updateLiveMatchScore } from "./match-service.js";
 import { prisma } from "./prisma.js";
 
 export type SyncResult = {
@@ -290,6 +290,28 @@ async function applyApiFixtureUpdate(
       },
     });
     result.finalized++;
+    result.updated++;
+    return;
+  }
+
+  if (
+    status === MatchStatus.LIVE &&
+    scores.home != null &&
+    scores.away != null
+  ) {
+    result.live++;
+    await updateLiveMatchScore(existing.id, scores.home, scores.away);
+    await prisma.match.update({
+      where: { id: existing.id },
+      data: {
+        homeTeam: data.homeTeam,
+        awayTeam: data.awayTeam,
+        kickoffTime: data.kickoffTime,
+        stage: data.stage,
+        venue: data.venue,
+        lastSyncedAt: new Date(),
+      },
+    });
     result.updated++;
     return;
   }

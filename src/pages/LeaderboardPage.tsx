@@ -5,9 +5,10 @@ import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/display-names";
 import { isDrawScore, isKnockoutStage } from "@shared/knockout";
-import { formatPoints, isMatchLocked, SCORING } from "@shared/scoring";
+import { formatPoints, getPointsToneClass, isMatchLocked } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
+import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
 import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
@@ -81,10 +82,12 @@ function ConcealedPrediction() {
 function PredictionCell({
   prediction,
   finished,
+  live = false,
   concealed = false,
 }: {
   prediction?: Prediction;
   finished: boolean;
+  live?: boolean;
   concealed?: boolean;
 }) {
   if (!prediction) {
@@ -97,23 +100,18 @@ function PredictionCell({
 
   const score = `${prediction.predictedHomeScore}:${prediction.predictedAwayScore}`;
 
-  if (finished && prediction.pointsEarned != null) {
+  if ((finished || live) && prediction.pointsEarned != null) {
     const pts = prediction.pointsEarned;
-    const color =
-      pts === SCORING.EXACT
-        ? "text-green-400"
-        : pts === SCORING.KNOCKOUT_DRAW_WINNER
-          ? "text-sky-400"
-          : pts === SCORING.OUTCOME
-            ? "text-yellow-400"
-            : pts === SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW
-              ? "text-orange-400"
-              : "text-red-400";
 
     return (
       <div className="flex flex-col items-center gap-0 leading-none sm:gap-0.5">
         <span className="text-[10px] font-bold sm:text-sm">{score}</span>
-        <span className={`text-[9px] font-semibold sm:text-xs sm:font-medium ${color}`}>
+        <span
+          className={`text-[9px] font-semibold sm:text-xs sm:font-medium ${getPointsToneClass(pts)} ${
+            live ? "animate-pulse" : ""
+          }`}
+          title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+        >
           +{formatPoints(pts)}
         </span>
       </div>
@@ -165,16 +163,20 @@ function RankingRow({
 
 function MatchResultBadge({
   finished,
+  live = false,
   homeScore,
   awayScore,
   compact,
 }: {
   finished: boolean;
+  live?: boolean;
   homeScore: number | null;
   awayScore: number | null;
   compact?: boolean;
 }) {
-  if (!finished || homeScore == null || awayScore == null) {
+  const showScore = (finished || live) && homeScore != null && awayScore != null;
+
+  if (!showScore) {
     return (
       <span className={`text-white/30 ${compact ? "text-xs sm:text-sm" : "text-xs"}`}>—</span>
     );
@@ -182,9 +184,12 @@ function MatchResultBadge({
 
   return (
     <span
-      className={`inline-block rounded-md bg-[var(--gold)]/15 font-bold text-[var(--gold)] ${
-        compact ? "px-1.5 py-0.5 text-xs sm:text-sm" : "px-1.5 py-0.5 text-xs sm:text-sm"
-      }`}
+      className={`inline-block rounded-md font-bold ${
+        live
+          ? "bg-red-500/15 text-red-300"
+          : "bg-[var(--gold)]/15 text-[var(--gold)]"
+      } ${compact ? "px-1.5 py-0.5 text-xs sm:text-sm" : "px-1.5 py-0.5 text-xs sm:text-sm"}`}
+      title={live ? "Wynik na żywo" : undefined}
     >
       {homeScore}:{awayScore}
     </span>
@@ -197,6 +202,7 @@ function MatchLabel({
   stage,
   kickoffTime,
   finished = false,
+  live = false,
   homeScore = null,
   awayScore = null,
   compact = false,
@@ -206,6 +212,7 @@ function MatchLabel({
   stage: string | null;
   kickoffTime: string;
   finished?: boolean;
+  live?: boolean;
   homeScore?: number | null;
   awayScore?: number | null;
   compact?: boolean;
@@ -230,6 +237,7 @@ function MatchLabel({
         <div className="my-0.5 flex justify-center">
           <MatchResultBadge
             finished={finished}
+            live={live}
             homeScore={homeScore}
             awayScore={awayScore}
             compact
@@ -248,7 +256,12 @@ function MatchLabel({
     <div title={tooltip}>
       <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium whitespace-nowrap">
         <TeamWithFlag name={homeTeam} flagWidth={18} />
-        <MatchResultBadge finished={finished} homeScore={homeScore} awayScore={awayScore} />
+        <MatchResultBadge
+          finished={finished}
+          live={live}
+          homeScore={homeScore}
+          awayScore={awayScore}
+        />
         <TeamWithFlag name={awayTeam} flagWidth={18} />
       </p>
       <p className="text-xs text-white/40">
@@ -327,6 +340,12 @@ export default function LeaderboardPage() {
   useEffect(() => {
     void loadLeaderboard();
   }, [loadLeaderboard]);
+
+  useEffect(() => {
+    if (!hasMatchesNeedingLivePoll(matches)) return;
+    const id = setInterval(() => void loadLeaderboard(true), LIVE_UI_POLL_MS);
+    return () => clearInterval(id);
+  }, [matches, loadLeaderboard]);
 
   const predictionMap = useMemo(() => {
     const map = new Map<string, Prediction>();
@@ -513,6 +532,7 @@ export default function LeaderboardPage() {
                     <tbody>
                       {matches.map((match) => {
                         const finished = match.status === "FINISHED";
+                        const live = match.status === "LIVE";
                         const locked = isMatchLocked(new Date(match.kickoffTime), now);
                         return (
                           <tr key={match.id} className="border-b border-white/5">
@@ -523,6 +543,7 @@ export default function LeaderboardPage() {
                                 stage={match.stage}
                                 kickoffTime={match.kickoffTime}
                                 finished={finished}
+                                live={live}
                                 homeScore={match.homeScore}
                                 awayScore={match.awayScore}
                                 compact
@@ -536,6 +557,7 @@ export default function LeaderboardPage() {
                                 <PredictionCell
                                   prediction={predictionMap.get(`${u.id}:${match.id}`)}
                                   finished={finished}
+                                  live={live}
                                   concealed={u.id !== user?.id && !locked}
                                 />
                               </td>
@@ -626,6 +648,7 @@ export default function LeaderboardPage() {
                       <ul className="space-y-2">
                         {userPredictions.map(({ match, prediction }) => {
                           const finished = match.status === "FINISHED";
+                          const live = match.status === "LIVE";
                           const locked = isMatchLocked(new Date(match.kickoffTime), now);
                           return (
                             <li
@@ -665,27 +688,22 @@ export default function LeaderboardPage() {
                                       )}
                                   </span>
                                 )}
-                                {finished && (
+                                {(finished || live) && match.homeScore != null && match.awayScore != null && (
                                   <>
-                                    <span className="text-white/40">
-                                      Wynik: {match.homeScore}:{match.awayScore}
+                                    <span className={live ? "text-red-300/80" : "text-white/40"}>
+                                      {live ? "Na żywo" : "Wynik"}: {match.homeScore}:{match.awayScore}
                                     </span>
-                                    <span
-                                      className={`font-semibold ${
-                                        prediction!.pointsEarned === SCORING.EXACT
-                                          ? "text-green-400"
-                                          : prediction!.pointsEarned === SCORING.KNOCKOUT_DRAW_WINNER
-                                            ? "text-sky-400"
-                                            : prediction!.pointsEarned === SCORING.OUTCOME
-                                              ? "text-yellow-400"
-                                              : prediction!.pointsEarned ===
-                                                  SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW
-                                                ? "text-orange-400"
-                                                : "text-red-400"
-                                      }`}
-                                    >
-                                      +{formatPoints(prediction!.pointsEarned!)} pkt
-                                    </span>
+                                    {(finished || live) && prediction!.pointsEarned != null && (
+                                      <span
+                                        className={`font-semibold ${getPointsToneClass(prediction!.pointsEarned!)} ${
+                                          live ? "animate-pulse" : ""
+                                        }`}
+                                        title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+                                      >
+                                        +{formatPoints(prediction!.pointsEarned!)} pkt
+                                        {live ? " (live)" : ""}
+                                      </span>
+                                    )}
                                   </>
                                 )}
                               </div>

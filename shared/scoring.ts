@@ -24,6 +24,14 @@ export function formatPoints(points: number): string {
   return points.toFixed(1);
 }
 
+export function getPointsToneClass(pts: number): string {
+  if (pts === SCORING.EXACT) return "text-green-400";
+  if (pts === SCORING.KNOCKOUT_DRAW_WINNER) return "text-sky-400";
+  if (pts === SCORING.OUTCOME) return "text-yellow-400";
+  if (pts === SCORING.KNOCKOUT_WINNER_AFTER_REG_DRAW) return "text-orange-400";
+  return "text-red-400";
+}
+
 export type MatchOutcome = "home" | "away" | "draw";
 
 export function getOutcome(home: number, away: number): MatchOutcome {

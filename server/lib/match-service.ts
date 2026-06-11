@@ -1,30 +1,23 @@
-import { MatchStatus } from "@prisma/client";
+import { Match, MatchStatus } from "@prisma/client";
 import { isDrawScore, isKnockoutStage, parseKnockoutSide, type KnockoutSide } from "../../shared/knockout.js";
 import { calculatePoints } from "../../shared/scoring.js";
 import { prisma } from "./prisma.js";
 
-/** Zapisuje lub poprawia wynik meczu i przelicza punkty (różnica vs poprzedni wynik). */
-export async function setMatchResult(
-  matchId: string,
+type ScoreUpdateOptions = {
+  status: MatchStatus;
+  knockoutWinner: KnockoutSide | null;
+  adminId?: string | null;
+  recordHistory?: boolean;
+};
+
+async function applyScoreUpdate(
+  match: Match,
   homeScore: number,
   awayScore: number,
-  knockoutWinnerInput?: KnockoutSide | null,
-  adminId?: string | null
+  options: ScoreUpdateOptions,
 ) {
-  const match = await prisma.match.findUnique({ where: { id: matchId } });
-  if (!match) {
-    throw new Error("Mecz nie istnieje");
-  }
-
-  const knockout = isKnockoutStage(match.stage);
-  const regulationDraw = isDrawScore(homeScore, awayScore);
-  const knockoutWinner = regulationDraw && knockout ? parseKnockoutSide(knockoutWinnerInput) : null;
-
-  if (knockout && regulationDraw && !knockoutWinner) {
-    throw new Error("Przy remisie w fazie pucharowej podaj zwycięzcę po dogrywce");
-  }
-
-  const predictions = await prisma.prediction.findMany({ where: { matchId } });
+  const { status, knockoutWinner, adminId, recordHistory } = options;
+  const predictions = await prisma.prediction.findMany({ where: { matchId: match.id } });
 
   await prisma.$transaction(async (tx) => {
     for (const prediction of predictions) {
@@ -57,20 +50,20 @@ export async function setMatchResult(
     }
 
     await tx.match.update({
-      where: { id: matchId },
+      where: { id: match.id },
       data: {
         homeScore,
         awayScore,
-        knockoutWinner,
-        status: MatchStatus.FINISHED,
-        resultEnteredAt: new Date(),
+        knockoutWinner: status === MatchStatus.FINISHED ? knockoutWinner : match.knockoutWinner,
+        status,
+        ...(status === MatchStatus.FINISHED ? { resultEnteredAt: new Date() } : {}),
       },
     });
 
-    if (adminId) {
+    if (recordHistory && adminId) {
       await tx.matchResultHistory.create({
         data: {
-          matchId,
+          matchId: match.id,
           adminId,
           homeScore,
           awayScore,
@@ -81,5 +74,59 @@ export async function setMatchResult(
         },
       });
     }
+  });
+}
+
+/** Aktualizuje wynik na żywo i przelicza punkty względem poprzedniego stanu. */
+export async function updateLiveMatchScore(
+  matchId: string,
+  homeScore: number,
+  awayScore: number,
+) {
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match) {
+    throw new Error("Mecz nie istnieje");
+  }
+  if (match.status === MatchStatus.FINISHED) {
+    return;
+  }
+
+  const knockout = isKnockoutStage(match.stage);
+  const regulationDraw = isDrawScore(homeScore, awayScore);
+  const knockoutWinner =
+    regulationDraw && knockout ? parseKnockoutSide(match.knockoutWinner) : null;
+
+  await applyScoreUpdate(match, homeScore, awayScore, {
+    status: MatchStatus.LIVE,
+    knockoutWinner,
+  });
+}
+
+/** Zapisuje lub poprawia wynik meczu i przelicza punkty (różnica vs poprzedni wynik). */
+export async function setMatchResult(
+  matchId: string,
+  homeScore: number,
+  awayScore: number,
+  knockoutWinnerInput?: KnockoutSide | null,
+  adminId?: string | null,
+) {
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match) {
+    throw new Error("Mecz nie istnieje");
+  }
+
+  const knockout = isKnockoutStage(match.stage);
+  const regulationDraw = isDrawScore(homeScore, awayScore);
+  const knockoutWinner = regulationDraw && knockout ? parseKnockoutSide(knockoutWinnerInput) : null;
+
+  if (knockout && regulationDraw && !knockoutWinner) {
+    throw new Error("Przy remisie w fazie pucharowej podaj zwycięzcę po dogrywce");
+  }
+
+  await applyScoreUpdate(match, homeScore, awayScore, {
+    status: MatchStatus.FINISHED,
+    knockoutWinner,
+    adminId,
+    recordHistory: Boolean(adminId),
   });
 }
