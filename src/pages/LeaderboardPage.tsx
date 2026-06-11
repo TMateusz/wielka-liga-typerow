@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ChevronDown, ChevronUp, Lock, Medal, Search } from "lucide-react";
 import { api } from "../api/client";
@@ -7,7 +7,8 @@ import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/dis
 import { isKnockoutStage } from "@shared/knockout";
 import { formatPoints, getPointsToneClass, isMatchLocked } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
-import { RANKING_TOP_N, TIPS_MATRIX_USER_LIMIT } from "@shared/league-limits";
+import { RANKING_TOP_N } from "@shared/league-limits";
+import { computeRankChange } from "@shared/rank-progress";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
@@ -43,10 +44,11 @@ type LeaderboardMatch = {
 type Prediction = {
   userId: string;
   matchId: string;
-  predictedHomeScore: number;
-  predictedAwayScore: number;
-  predictedKnockoutWinner: string | null;
-  pointsEarned: number | null;
+  concealed?: true;
+  predictedHomeScore?: number;
+  predictedAwayScore?: number;
+  predictedKnockoutWinner?: string | null;
+  pointsEarned?: number | null;
 };
 
 type LeaderboardData = {
@@ -96,7 +98,7 @@ function PredictionCell({
     return <span className="text-[10px] text-white/25 sm:text-sm">—</span>;
   }
 
-  if (concealed && !finished) {
+  if (prediction.concealed || (concealed && !finished)) {
     return <ConcealedPrediction />;
   }
 
@@ -125,12 +127,34 @@ function PredictionCell({
 
 type RankedUser = { user: LeaderboardUser; rank: number };
 
+function RankProgressBadge({ change }: { change: number | null | undefined }) {
+  if (change == null || change === 0) {
+    return <span className="font-mono text-sm text-white/30">—</span>;
+  }
+  if (change > 0) {
+    return (
+      <span className="font-mono text-sm font-semibold text-green-400" title="Awans w rankingu">
+        +{change}
+      </span>
+    );
+  }
+  return (
+    <span className="font-mono text-sm font-semibold text-red-400" title="Spadek w rankingu">
+      {change}
+    </span>
+  );
+}
+
 function RankingRow({
   entry,
   isMe,
+  rankChange,
+  showRankProgress = false,
 }: {
   entry: RankedUser;
   isMe: boolean;
+  rankChange?: number | null;
+  showRankProgress?: boolean;
 }) {
   const { user: u, rank } = entry;
 
@@ -151,6 +175,9 @@ function RankingRow({
           )}
           {rank}
         </span>
+      </td>
+      <td className="px-2 py-3 text-center">
+        {showRankProgress ? <RankProgressBadge change={rankChange ?? null} /> : null}
       </td>
       <td className="px-4 py-3 font-medium">
         {getDisplayName(u)}
@@ -283,10 +310,11 @@ export default function LeaderboardPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
   const [playerSearch, setPlayerSearch] = useState("");
-  const [showMatrix, setShowMatrix] = useState(false);
+  const [showMatrix, setShowMatrix] = useState(true);
   const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
   const [tournamentProgress, setTournamentProgress] = useState<TournamentProgress | null>(null);
   const [now, setNow] = useState(() => new Date());
+  const prevRanksRef = useRef<Map<string, number>>(new Map());
 
   useEffect(() => {
     const imminentKickoff = matches.some((m) => {
@@ -366,9 +394,19 @@ export default function LeaderboardPage() {
     });
   }, [tipUsers, playerSearch]);
 
-  const matrixEnabled =
-    showMatrix && users.length > 0 && users.length <= TIPS_MATRIX_USER_LIMIT;
-  const matrixAvailable = users.length <= TIPS_MATRIX_USER_LIMIT;
+  const matrixEnabled = showMatrix && users.length > 0;
+
+  const topRankChanges = useMemo(() => {
+    const changes = new Map<string, number | null>();
+    users.slice(0, RANKING_TOP_N).forEach((u, index) => {
+      changes.set(u.id, computeRankChange(prevRanksRef.current.get(u.id), index + 1));
+    });
+    return changes;
+  }, [users]);
+
+  useEffect(() => {
+    prevRanksRef.current = new Map(users.map((u, index) => [u.id, index + 1]));
+  }, [users]);
 
   const rankingDisplay = useMemo(() => {
     const ranked: RankedUser[] = users.map((u, index) => ({ user: u, rank: index + 1 }));
@@ -433,6 +471,9 @@ export default function LeaderboardPage() {
           <thead className="border-b border-white/10 bg-white/5 text-sm uppercase tracking-wide text-white/50">
             <tr>
               <th className="px-4 py-3">#</th>
+              <th className="w-12 px-2 py-3 text-center" title="Zmiana pozycji od ostatniego odświeżenia">
+                Δ
+              </th>
               <th className="px-4 py-3">Gracz</th>
               <th className="px-4 py-3 text-right">Punkty</th>
             </tr>
@@ -443,12 +484,14 @@ export default function LeaderboardPage() {
                 key={entry.user.id}
                 entry={entry}
                 isMe={entry.user.id === user?.id}
+                showRankProgress
+                rankChange={topRankChanges.get(entry.user.id) ?? null}
               />
             ))}
             {rankingDisplay.meBelowTop && (
               <>
                 <tr className="border-b border-white/5">
-                  <td colSpan={3} className="px-4 py-2 text-center text-sm text-white/30">
+                  <td colSpan={4} className="px-4 py-2 text-center text-sm text-white/30">
                     …
                   </td>
                 </tr>
@@ -459,8 +502,8 @@ export default function LeaderboardPage() {
         </table>
       </div>
 
-      {/* Macierz typów — tylko przy mniejszej liczbie graczy */}
-      {matches.length > 0 && matrixAvailable && (
+      {/* Macierz typów — top 10 + Ty (jeśli poza top 10) */}
+      {users.length > 0 && (
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-[var(--gold)]">Tabela typów</h3>
@@ -486,21 +529,23 @@ export default function LeaderboardPage() {
 
           {!matrixEnabled && (
             <p className="text-sm text-white/45">
-              {matches.length} meczów · top {RANKING_TOP_N}
-              {rankingDisplay.meBelowTop ? " + Ty" : ""} — rozwiń, aby zobaczyć macierz typów.
+              Top {RANKING_TOP_N}
+              {rankingDisplay.meBelowTop ? " + Twoja kolumna" : user ? " (jesteś w top 10)" : ""} —
+              rozwiń, aby zobaczyć macierz typów.
             </p>
           )}
 
           {matrixEnabled ? (
             <>
               <p className="text-sm text-white/50">
-                Typy innych graczy są ukryte do rozpoczęcia meczu. Po starcie widać obstawienia,
-                a po zakończeniu i wpisaniu wyniku — także punkty (+3 / +1 / +0).
+                Kolumny: top {RANKING_TOP_N}
+                {rankingDisplay.meBelowTop ? " + Ty" : ""}. Typy innych graczy są ukryte do
+                rozpoczęcia meczu; po starcie widać obstawienia i punkty.
               </p>
               <p className="text-xs text-white/40 sm:hidden">
                 Przesuń tabelę w bok, aby zobaczyć wszystkie kolumny →
               </p>
-              {tipsLoading ? (
+              {tipsLoading || matches.length === 0 ? (
                 <p className="text-sm text-white/40">Ładowanie typów…</p>
               ) : (
                 <div className="card-pitch max-h-[min(28rem,55vh)] overflow-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
@@ -576,13 +621,6 @@ export default function LeaderboardPage() {
             </>
           ) : null}
         </section>
-      )}
-
-      {matches.length > 0 && !matrixAvailable && (
-        <div className="card-pitch p-4 text-sm text-white/50">
-          Przy {users.length} graczach pełna macierz typów byłaby zbyt wolna w przeglądarce.
-          Użyj wyszukiwarki i listy „Typy graczy” poniżej.
-        </div>
       )}
 
       {/* Szczegóły per gracz */}
@@ -668,7 +706,7 @@ export default function LeaderboardPage() {
                                 <span className="ml-0 mt-1 block text-white/40">{match.stage}</span>
                               </div>
                               <div className="flex items-center gap-3">
-                                {!finished && !isMe && !locked ? (
+                                {prediction!.concealed || (!finished && !isMe && !locked) ? (
                                   <span className="inline-flex items-center gap-1.5 text-white/40">
                                     <Lock className="h-3.5 w-3.5" />
                                     Ukryty do rozpoczęcia meczu

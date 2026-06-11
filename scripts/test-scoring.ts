@@ -3,6 +3,8 @@
  * Uruchom: npm run test:scoring
  */
 import { resolveActualKnockoutWinner } from "../shared/knockout.js";
+import { canViewPrediction, toPublicPrediction } from "../shared/prediction-privacy.js";
+import { computeRankChange } from "../shared/rank-progress.js";
 import {
   calculatePoints,
   calculateRegulationPoints,
@@ -308,6 +310,41 @@ console.log("\ncalculateRegulationPoints");
 assertEq(calculateRegulationPoints(2, 1, 2, 1), 3, "regulacja 3");
 assertEq(calculateRegulationPoints(1, 0, 2, 0), 1, "regulacja 1 (ten sam zwycięzca)");
 assertEq(calculateRegulationPoints(1, 0, 0, 2), 0, "regulacja 0 (zły zwycięzca)");
+
+// ── Progres rankingu (Δ) ─────────────────────────────────────
+console.log("\nRank progress");
+assertEq(computeRankChange(10, 7), 3, "awans o 3 miejsca → +3");
+assertEq(computeRankChange(5, 6), -1, "spadek o 1 → -1");
+assertEq(computeRankChange(3, 3), 0, "bez zmiany → 0");
+assert(computeRankChange(undefined, 1) === null, "pierwsze odświeżenie → brak danych");
+
+// ── Ukrywanie typów przed startem meczu ──────────────────────
+console.log("\nPrediction privacy (API)");
+
+const kickoffFuture = new Date("2030-01-01T20:00:00Z");
+const kickoffPast = new Date("2020-01-01T20:00:00Z");
+const row = {
+  userId: "user-a",
+  matchId: "match-1",
+  predictedHomeScore: 2,
+  predictedAwayScore: 1,
+  predictedKnockoutWinner: null,
+  pointsEarned: null,
+};
+
+assert(canViewPrediction("user-a", "user-a", kickoffFuture), "właściciel widzi swój typ");
+assert(!canViewPrediction("user-a", "user-b", kickoffFuture), "obcy nie widzi przed startem");
+assert(canViewPrediction("user-a", "user-b", kickoffPast), "obcy widzi po whiśle");
+assert(canViewPrediction("user-a", null, kickoffPast), "gość widzi po whiśle");
+
+const hidden = toPublicPrediction(row, kickoffFuture, "user-b");
+assert(hidden.concealed === true && !("predictedHomeScore" in hidden), "API bez wyniku");
+
+const visible = toPublicPrediction(row, kickoffFuture, "user-a");
+assert(
+  !visible.concealed && visible.predictedHomeScore === 2,
+  "właściciel dostaje pełny typ",
+);
 
 console.log(`\n=== Podsumowanie: ${passed} OK, ${failed} błędów ===\n`);
 if (failed > 0) process.exitCode = 1;

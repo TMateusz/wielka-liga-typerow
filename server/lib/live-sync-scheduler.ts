@@ -2,7 +2,7 @@ import { syncWorldCup2026Live } from "./worldcup2026-sync.js";
 import { isApiFootballConfigured } from "./api-football.js";
 import { syncMatchResults } from "./sync-service.js";
 
-const DEFAULT_INTERVAL_MS = 60_000;
+const DEFAULT_INTERVAL_MS = 15_000;
 const API_FOOTBALL_INTERVAL_MS = 30 * 60 * 1000;
 
 export function startLiveSyncScheduler() {

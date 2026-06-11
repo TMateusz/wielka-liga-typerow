@@ -169,7 +169,7 @@ export function sortDashboardMatches<T extends { status: string; kickoffTime: Da
   matches: T[],
   options: { finishedTab?: boolean; now?: Date } = {},
 ): T[] {
-  const { finishedTab = false, now = new Date() } = options;
+  const { finishedTab = false } = options;
 
   if (finishedTab) {
     return [...matches].sort(
@@ -177,10 +177,8 @@ export function sortDashboardMatches<T extends { status: string; kickoffTime: Da
     );
   }
 
-  return [...matches].sort((a, b) => {
-    const rankA = getDashboardMatchSortRank(a, now);
-    const rankB = getDashboardMatchSortRank(b, now);
-    if (rankA !== rankB) return rankA - rankB;
-    return new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime();
-  });
+  // Stała kolejność po terminie rozpoczęcia — mecz LIVE nie „spada” na dół listy.
+  return [...matches].sort(
+    (a, b) => new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime(),
+  );
 }

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Radio } from "lucide-react";
 import type { KnockoutSide } from "@shared/knockout";
 import { api } from "../api/client";
 import { filterMatchesByTab, getStageTabLabel, STAGE_TABS } from "@shared/match-stages";
@@ -90,12 +91,24 @@ export default function DashboardPage() {
     );
   }
 
+  const liveMatches = useMemo(
+    () =>
+      [...matches]
+        .filter((m) => m.status === "LIVE")
+        .sort(
+          (a, b) => new Date(a.kickoffTime).getTime() - new Date(b.kickoffTime).getTime(),
+        ),
+    [matches],
+  );
+
   const filtered = useMemo(() => {
     const list = filterMatchesByTab(matches, activeTab);
-    return sortDashboardMatches(list, {
+    const sorted = sortDashboardMatches(list, {
       finishedTab: activeTab === "finished",
       now,
     });
+    if (activeTab === "finished") return sorted;
+    return sorted.filter((m) => m.status !== "LIVE");
   }, [matches, activeTab, now]);
 
   if (loading) {
@@ -112,6 +125,25 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      {liveMatches.length > 0 && (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-lg bg-red-500/15 px-3 py-1.5 text-sm font-bold uppercase tracking-wide text-red-300">
+              <Radio className="h-4 w-4 animate-pulse" />
+              Live
+            </span>
+            <span className="text-sm text-white/45">
+              {liveMatches.length === 1 ? "1 mecz trwa" : `${liveMatches.length} mecze trwają`}
+            </span>
+          </div>
+          <div className="grid gap-4">
+            {liveMatches.map((match) => (
+              <MatchCard key={match.id} match={match} onSave={savePrediction} />
+            ))}
+          </div>
+        </section>
+      )}
+
       <RulesUpdateBanner />
 
       <div className="flex flex-wrap items-start justify-between gap-3">

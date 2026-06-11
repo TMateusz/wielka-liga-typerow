@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Clock, Lock, CheckCircle2, Radio } from "lucide-react";
 import type { KnockoutSide } from "@shared/knockout";
 import { isKnockoutStage } from "@shared/knockout";
+import { LIVE_UI_POLL_SEC } from "@shared/live-sync";
 import {
   BET_WINDOW_DAYS,
   formatBettingOpensAt,
@@ -213,7 +214,7 @@ export function MatchCard({ match, onSave }: Props) {
 
       {live && match.prediction?.pointsEarned == null && (
         <p className="mb-3 text-center text-sm text-red-300/80">
-          Mecz trwa — wynik i punkty odświeżają się co minutę.
+          Mecz trwa — wynik i punkty odświeżają się co {LIVE_UI_POLL_SEC} sekund.
         </p>
       )}
 

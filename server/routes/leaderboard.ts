@@ -1,9 +1,11 @@
 import { Router } from "express";
 import { MatchStatus, UserRole } from "@prisma/client";
+import { toPublicPrediction } from "../../shared/prediction-privacy.js";
 import { isExactScorePrediction } from "../../shared/scoring.js";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
 import { getTournamentProgress } from "../lib/tournament-progress.js";
+import { optionalAuth } from "../middleware/auth.js";
 import { prisma } from "../lib/prisma.js";
 
 const router = Router();
@@ -97,9 +99,12 @@ router.get("/", async (_req, res) => {
   });
 });
 
-/** Mecze + typy — ładuj osobno, bo przy ~100 graczach to duży payload. */
-router.get("/tips", async (_req, res) => {
-  const [matches, predictions] = await Promise.all([
+/** Mecze + typy — cudze typy ukryte w JSON do startu meczu (nie tylko w UI). */
+router.get("/tips", optionalAuth, async (req, res) => {
+  const viewerUserId = req.user?.id ?? null;
+  const now = new Date();
+
+  const [matches, rawPredictions] = await Promise.all([
     prisma.match.findMany({
       orderBy: { kickoffTime: "asc" },
       select: matchSelect,
@@ -116,6 +121,15 @@ router.get("/tips", async (_req, res) => {
       },
     }),
   ]);
+
+  const kickoffByMatchId = new Map(matches.map((m) => [m.id, m.kickoffTime]));
+  const predictions = rawPredictions.map((row) => {
+    const kickoffTime = kickoffByMatchId.get(row.matchId);
+    if (!kickoffTime) {
+      return { userId: row.userId, matchId: row.matchId, concealed: true as const };
+    }
+    return toPublicPrediction(row, kickoffTime, viewerUserId, now);
+  });
 
   res.json({
     matches: matches.map((m) =>

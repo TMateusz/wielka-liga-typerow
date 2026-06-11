@@ -23,6 +23,22 @@ export function signToken(user: AuthUser): string {
   return jwt.sign(user, JWT_SECRET, { expiresIn: "30d" });
 }
 
+/** Ustawia req.user gdy token jest poprawny; bez tokena przechodzi dalej. */
+export function optionalAuth(req: Request, _res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return next();
+  }
+
+  try {
+    const token = header.slice(7);
+    req.user = jwt.verify(token, JWT_SECRET) as AuthUser;
+  } catch {
+    // Nieautoryzowany podgląd — traktuj jak gościa.
+  }
+  next();
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header?.startsWith("Bearer ")) {

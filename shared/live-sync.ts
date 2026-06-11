@@ -1,5 +1,6 @@
 /** Odświeżanie UI podczas trwających meczów (ms). */
-export const LIVE_UI_POLL_MS = 60_000;
+export const LIVE_UI_POLL_MS = 15_000;
+export const LIVE_UI_POLL_SEC = LIVE_UI_POLL_MS / 1000;
 
 export type MatchActivityInput = {
   status: string;

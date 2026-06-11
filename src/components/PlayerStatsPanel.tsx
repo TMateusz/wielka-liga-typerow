@@ -5,10 +5,11 @@ import { TeamWithFlag } from "./TeamWithFlag";
 type Prediction = {
   userId: string;
   matchId: string;
-  predictedHomeScore: number;
-  predictedAwayScore: number;
-  predictedKnockoutWinner: string | null;
-  pointsEarned: number | null;
+  concealed?: true;
+  predictedHomeScore?: number;
+  predictedAwayScore?: number;
+  predictedKnockoutWinner?: string | null;
+  pointsEarned?: number | null;
 };
 
 type Match = {
