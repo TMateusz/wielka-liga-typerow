@@ -1,6 +1,6 @@
 import { MatchStatus, UserRole } from "@prisma/client";
 import { resolveActiveKolejka } from "../../shared/match-kolejka.js";
-import { computeTopNRankChange } from "../../shared/rank-progress.js";
+import { computeRankChange } from "../../shared/rank-progress.js";
 import { buildRankMap, sortUsersForRanking, type RankSortUser } from "../../shared/rank-order.js";
 import { isExactScorePrediction } from "../../shared/scoring.js";
 import { prisma } from "./prisma.js";
@@ -8,7 +8,7 @@ import { prisma } from "./prisma.js";
 export type RankKolejkaDelta = {
   kolejkaKey: string | null;
   kolejkaLabel: string | null;
-  /** userId → Δ: ilu graczy z poprzedniej top N wyprzedzono od startu kolejki. */
+  /** userId → Δ pozycji w rankingu od startu kolejki (dodatnie = awans). */
   deltas: Record<string, number | null>;
 };
 
@@ -76,7 +76,6 @@ async function sumPointsBefore(userIds: string[], before: Date): Promise<Map<str
 
 export async function buildRankKolejkaDelta(
   sortedUsers: LeaderboardUser[],
-  topN: number,
 ): Promise<RankKolejkaDelta> {
   const matches = await prisma.match.findMany({
     select: { kickoffTime: true, status: true },
@@ -111,7 +110,10 @@ export async function buildRankKolejkaDelta(
 
   const deltas: Record<string, number | null> = {};
   for (const u of sortedUsers) {
-    deltas[u.id] = computeTopNRankChange(u.id, baselineRanks, currentRanks, topN);
+    const prev = baselineRanks.get(u.id);
+    const curr = currentRanks.get(u.id);
+    deltas[u.id] =
+      prev === undefined || curr === undefined ? null : computeRankChange(prev, curr);
   }
 
   return {

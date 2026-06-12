@@ -1,6 +1,10 @@
 import { MatchStatus } from "@prisma/client";
 import { isDrawScore, isKnockoutStage } from "../../shared/knockout.js";
-import { parseWc2026Scorers, serializeScorers } from "../../shared/goal-scorers.js";
+import {
+  parseStoredScorers,
+  parseWc2026Scorers,
+  serializeScorers,
+} from "../../shared/goal-scorers.js";
 import { normalizeLiveClock } from "../../shared/live-clock.js";
 import { fetchWorldCup2026Games, type Wc2026Game } from "./worldcup2026-api.js";
 import { setMatchResult, updateLiveMatchScore } from "./match-service.js";
@@ -57,6 +61,55 @@ function getScorersPayload(game: Wc2026Game) {
   };
 }
 
+function scorersNeedUpdate(
+  match: { homeScorers: string | null; awayScorers: string | null },
+  game: Wc2026Game,
+) {
+  const scorers = getScorersPayload(game);
+  const localHomeEmpty = parseStoredScorers(match.homeScorers).length === 0;
+  const localAwayEmpty = parseStoredScorers(match.awayScorers).length === 0;
+  const apiHome = parseWc2026Scorers(game.home_scorers);
+  const apiAway = parseWc2026Scorers(game.away_scorers);
+
+  return (
+    scorers.homeScorers !== match.homeScorers ||
+    scorers.awayScorers !== match.awayScorers ||
+    (localHomeEmpty && apiHome.length > 0) ||
+    (localAwayEmpty && apiAway.length > 0)
+  );
+}
+
+/** Uzupełnia strzelców dla meczów FINISHED z API (np. M1 sprzed wdrożenia syncu). */
+export async function backfillFinishedScorers(games: Wc2026Game[]): Promise<number> {
+  const finished = await prisma.match.findMany({
+    where: { status: MatchStatus.FINISHED },
+    select: { id: true, fixtureNumber: true, homeScorers: true, awayScorers: true },
+  });
+
+  const byFixture = new Map(
+    games
+      .map((g) => {
+        const n = Number.parseInt(g.id, 10);
+        return Number.isFinite(n) ? ([n, g] as const) : null;
+      })
+      .filter((x): x is [number, Wc2026Game] => x != null),
+  );
+
+  let updated = 0;
+  for (const match of finished) {
+    if (match.fixtureNumber == null) continue;
+    const game = byFixture.get(match.fixtureNumber);
+    if (!game || !scorersNeedUpdate(match, game)) continue;
+
+    await prisma.match.update({
+      where: { id: match.id },
+      data: { ...getScorersPayload(game), lastSyncedAt: new Date() },
+    });
+    updated++;
+  }
+  return updated;
+}
+
 /** Synchronizuje wyniki z worldcup26.ir po numerze meczu (M1–M104). */
 export async function syncWorldCup2026Live(): Promise<Wc2026SyncResult> {
   if (isSyncing) {
@@ -98,6 +151,11 @@ export async function syncWorldCup2026Live(): Promise<Wc2026SyncResult> {
       }
     }
 
+    const backfilled = await backfillFinishedScorers(games);
+    if (backfilled > 0) {
+      result.updated += backfilled;
+    }
+
     lastSyncAt = new Date();
     lastSyncResult = result;
     return result;
@@ -121,11 +179,10 @@ async function applyGameUpdate(
   }
 
   if (match.status === MatchStatus.FINISHED) {
-    const scorers = getScorersPayload(game);
-    if (scorers.homeScorers !== match.homeScorers || scorers.awayScorers !== match.awayScorers) {
+    if (scorersNeedUpdate(match, game)) {
       await prisma.match.update({
         where: { id: match.id },
-        data: { ...scorers, lastSyncedAt: new Date() },
+        data: { ...getScorersPayload(game), lastSyncedAt: new Date() },
       });
       result.updated++;
     }

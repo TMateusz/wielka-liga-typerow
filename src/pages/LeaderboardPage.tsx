@@ -476,7 +476,7 @@ export default function LeaderboardPage() {
             {kolejkaLabel && (
               <>
                 {" "}
-                · Δ top {RANKING_TOP_N} od startu kolejki ({kolejkaLabel})
+                · Δ pozycji od startu kolejki ({kolejkaLabel})
               </>
             )}
           </p>
@@ -499,7 +499,7 @@ export default function LeaderboardPage() {
               <th className="px-4 py-3">#</th>
               <th
                 className="w-12 px-2 py-3 text-center"
-                title="Ilu graczy z poprzedniej top 10 wyprzedzono od startu kolejki (po zakończeniu meczu)"
+                title="Zmiana pozycji w rankingu od startu kolejki — +2 = awans o 2 miejsca, −1 = spadek"
               >
                 Δ
               </th>

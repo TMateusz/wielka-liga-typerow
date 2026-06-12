@@ -82,12 +82,24 @@ function formatMessageTime(iso: string): string {
   return formatLastActive(iso, now);
 }
 
+const STACK_GAP_MS = 5 * 60 * 1000;
+
+function canStackMessages(prev: ChatMessage, next: ChatMessage): boolean {
+  if (prev.user.id !== next.user.id) return false;
+  if (next.parentId || prev.parentId) return false;
+  if (prev.deleted || next.deleted) return false;
+  const gap = new Date(next.createdAt).getTime() - new Date(prev.createdAt).getTime();
+  return gap >= 0 && gap <= STACK_GAP_MS;
+}
+
 function groupMessages(messages: ChatMessage[], currentUserId: string): MessageGroup[] {
   const groups: MessageGroup[] = [];
 
   for (const message of messages) {
     const last = groups[groups.length - 1];
-    if (last && last.userId === message.user.id) {
+    const lastMessage = last?.messages[last.messages.length - 1];
+
+    if (last && lastMessage && canStackMessages(lastMessage, message)) {
       last.messages.push(message);
     } else {
       groups.push({
@@ -113,11 +125,12 @@ function AuthorLabel({ user, isMe }: { user: ChatUser; isMe: boolean }) {
         </span>
       )}
       {isLeader && (
-        <Crown
-          className="h-3.5 w-3.5 shrink-0 fill-[var(--wc-gold)] text-[var(--wc-gold-light)] drop-shadow-[0_0_6px_rgba(212,175,55,0.55)]"
-          aria-label="Lider rankingu"
-          title="Lider rankingu"
-        />
+        <span title="Lider rankingu">
+          <Crown
+            className="h-3.5 w-3.5 shrink-0 fill-[var(--wc-gold)] text-[var(--wc-gold-light)] drop-shadow-[0_0_6px_rgba(212,175,55,0.55)]"
+            aria-label="Lider rankingu"
+          />
+        </span>
       )}
       <span
         className={`font-display text-sm font-bold tracking-wide ${
@@ -422,142 +435,156 @@ export function ChatWidget() {
     shouldStickToBottom.current = distanceFromBottom < 48;
   }
 
-  function renderMessageBubble(message: ChatMessage, isMe: boolean, showHeader: boolean) {
-    const canModify = isMe && !message.deleted;
+  function renderMessageLine(message: ChatMessage, stacked: boolean) {
     const isEditing = editingId === message.id;
 
     return (
-      <article
+      <div
         key={message.id}
-        className={`group/msg relative rounded-xl px-3 py-2 ${
-          isMe ? "bg-[var(--gold)]/10" : "bg-white/[0.06]"
-        } ${showHeader ? "" : "mt-0.5"}`}
+        className={`${stacked ? "pt-1" : ""} ${message.parent ? "pt-1.5" : ""}`}
       >
-        {showHeader && <AuthorLabel user={message.user} isMe={isMe} />}
-
         {message.parent && <ParentQuote parent={message.parent} />}
 
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            {!showHeader && (
-              <span className="mb-0.5 block text-[10px] text-white/30">
-                {formatMessageTime(message.createdAt)}
-              </span>
-            )}
-
-            {isEditing ? (
-              <div className="space-y-2">
-                <textarea
-                  value={editDraft}
-                  onChange={(e) =>
-                    setEditDraft(e.target.value.slice(0, CHAT_MAX_MESSAGE_LENGTH))
-                  }
-                  rows={2}
-                  className="w-full resize-none rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-gold)]"
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => void handleEditSave(message.id)}
-                    disabled={sending || !editDraft.trim()}
-                    className="rounded-lg bg-[var(--wc-gold)]/20 px-2 py-1 text-xs font-medium text-[var(--wc-gold)] hover:bg-[var(--wc-gold)]/30"
-                  >
-                    Zapisz
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditingId(null);
-                      setEditDraft("");
-                    }}
-                    className="rounded-lg px-2 py-1 text-xs text-white/50 hover:bg-white/10"
-                  >
-                    Anuluj
-                  </button>
-                </div>
-              </div>
-            ) : message.deleted ? (
-              <p className="text-sm italic text-white/35">Wiadomość usunięta</p>
-            ) : (
-              <p className="whitespace-pre-wrap break-words text-sm leading-relaxed text-white/90">
-                {message.text}
-              </p>
-            )}
-
-            {showHeader && !isEditing && (
-              <p className="mt-1 text-[10px] text-white/30">
-                {formatMessageTime(message.createdAt)}
-                {message.editedAt && (
-                  <span className="ml-1.5 text-white/25">· edytowano</span>
-                )}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {!isEditing && !message.deleted && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1">
-            <button
-              type="button"
-              onClick={() => void handleHeart(message)}
-              disabled={heartingId === message.id}
-              className={`inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] transition ${
-                message.heartedByMe
-                  ? "bg-red-500/15 text-red-300"
-                  : "text-white/35 hover:bg-white/10 hover:text-red-300/80"
-              }`}
-              title={message.heartedByMe ? "Usuń serduszko" : "Daj serduszko"}
-            >
-              <Heart
-                className={`h-3.5 w-3.5 ${message.heartedByMe ? "fill-current" : ""}`}
-              />
-              {message.heartCount > 0 && <span>{message.heartCount}</span>}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => startReply(message)}
-              className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] text-white/35 transition hover:bg-white/10 hover:text-white/70"
-            >
-              <CornerDownRight className="h-3.5 w-3.5" />
-              Odpowiedz
-            </button>
-
-            {canModify && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => startEdit(message)}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] text-white/35 transition hover:bg-white/10 hover:text-white/70"
-                >
-                  <Pencil className="h-3 w-3" />
-                  Edytuj
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleDelete(message.id)}
-                  disabled={deletingId === message.id}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] text-white/35 transition hover:bg-red-500/15 hover:text-red-400"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Usuń
-                </button>
-              </>
-            )}
-
-            {isAdmin && !isMe && (
+        {isEditing ? (
+          <div className="space-y-2">
+            <textarea
+              value={editDraft}
+              onChange={(e) =>
+                setEditDraft(e.target.value.slice(0, CHAT_MAX_MESSAGE_LENGTH))
+              }
+              rows={2}
+              className="w-full resize-none rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-gold)]"
+              autoFocus
+            />
+            <div className="flex gap-2">
               <button
                 type="button"
-                onClick={() => void handleDelete(message.id)}
-                disabled={deletingId === message.id}
-                className="inline-flex items-center gap-1 rounded-lg px-2 py-0.5 text-[11px] text-white/35 transition hover:bg-red-500/15 hover:text-red-400"
-                title="Usuń (admin)"
+                onClick={() => void handleEditSave(message.id)}
+                disabled={sending || !editDraft.trim()}
+                className="rounded-lg bg-[var(--wc-gold)]/20 px-2 py-1 text-xs font-medium text-[var(--wc-gold)] hover:bg-[var(--wc-gold)]/30"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                Zapisz
               </button>
-            )}
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(null);
+                  setEditDraft("");
+                }}
+                className="rounded-lg px-2 py-1 text-xs text-white/50 hover:bg-white/10"
+              >
+                Anuluj
+              </button>
+            </div>
           </div>
+        ) : message.deleted ? (
+          <p className="text-sm italic text-white/35">Wiadomość usunięta</p>
+        ) : (
+          <p className="whitespace-pre-wrap break-words text-sm leading-snug text-white/90">
+            {message.text}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  function renderMessageActions(message: ChatMessage, isMe: boolean) {
+    const canModify = isMe && !message.deleted;
+    if (message.deleted || editingId === message.id) return null;
+
+    return (
+      <div className="mt-1 flex flex-wrap items-center gap-0.5 opacity-80 transition group-hover:opacity-100">
+        <button
+          type="button"
+          onClick={() => void handleHeart(message)}
+          disabled={heartingId === message.id}
+          className={`inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] transition ${
+            message.heartedByMe
+              ? "text-red-300"
+              : "text-white/35 hover:bg-white/10 hover:text-red-300/80"
+          }`}
+          title={message.heartedByMe ? "Usuń serduszko" : "Daj serduszko"}
+        >
+          <Heart className={`h-3 w-3 ${message.heartedByMe ? "fill-current" : ""}`} />
+          {message.heartCount > 0 && <span>{message.heartCount}</span>}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => startReply(message)}
+          className="inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 text-[10px] text-white/35 transition hover:bg-white/10 hover:text-white/70"
+        >
+          <CornerDownRight className="h-3 w-3" />
+          Odpowiedz
+        </button>
+
+        {canModify && (
+          <>
+            <button
+              type="button"
+              onClick={() => startEdit(message)}
+              className="rounded-md p-1 text-white/35 transition hover:bg-white/10 hover:text-white/70"
+              title="Edytuj"
+            >
+              <Pencil className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleDelete(message.id)}
+              disabled={deletingId === message.id}
+              className="rounded-md p-1 text-white/35 transition hover:bg-red-500/15 hover:text-red-400"
+              title="Usuń"
+            >
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </>
+        )}
+
+        {isAdmin && !isMe && (
+          <button
+            type="button"
+            onClick={() => void handleDelete(message.id)}
+            disabled={deletingId === message.id}
+            className="rounded-md p-1 text-white/35 transition hover:bg-red-500/15 hover:text-red-400"
+            title="Usuń (admin)"
+          >
+            <Trash2 className="h-3 w-3" />
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  function renderMessageGroup(group: MessageGroup) {
+    const lastMessage = group.messages[group.messages.length - 1];
+
+    return (
+      <article
+        key={`${group.userId}-${group.messages[0]?.id}`}
+        className={`group max-w-[92%] rounded-2xl px-3 py-2 ${
+          group.isMe
+            ? "ml-auto bg-[var(--gold)]/12"
+            : "mr-auto bg-white/[0.07]"
+        }`}
+      >
+        <AuthorLabel user={group.user} isMe={group.isMe} />
+
+        <div>
+          {group.messages.map((message, index) =>
+            renderMessageLine(message, index > 0),
+          )}
+        </div>
+
+        {lastMessage && !lastMessage.deleted && editingId !== lastMessage.id && (
+          <>
+            {renderMessageActions(lastMessage, group.isMe)}
+            <p className="mt-0.5 text-[10px] text-white/28">
+              {formatMessageTime(lastMessage.createdAt)}
+              {lastMessage.editedAt && (
+                <span className="ml-1 text-white/22">· edytowano</span>
+              )}
+            </p>
+          </>
         )}
       </article>
     );
@@ -600,14 +627,8 @@ export function ChatWidget() {
             Brak wiadomości — napisz pierwszą!
           </p>
         ) : (
-          <div className="space-y-4">
-            {groups.map((group) => (
-              <section key={`${group.userId}-${group.messages[0]?.id}`} className="space-y-0.5">
-                {group.messages.map((message, index) =>
-                  renderMessageBubble(message, group.isMe, index === 0),
-                )}
-              </section>
-            ))}
+          <div className="flex flex-col gap-2">
+            {groups.map((group) => renderMessageGroup(group))}
           </div>
         )}
       </div>

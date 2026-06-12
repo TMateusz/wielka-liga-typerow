@@ -6,7 +6,7 @@ import { resolveActualKnockoutWinner } from "../shared/knockout.js";
 import { canViewPrediction, toPublicPrediction } from "../shared/prediction-privacy.js";
 import { getKolejkaKey, resolveActiveKolejka } from "../shared/match-kolejka.js";
 import { buildRankMap, sortUsersForRanking } from "../shared/rank-order.js";
-import { computeRankChange, computeTopNRankChange } from "../shared/rank-progress.js";
+import { computeRankChange } from "../shared/rank-progress.js";
 import {
   calculatePoints,
   calculateRegulationPoints,
@@ -349,19 +349,8 @@ const currentPlayers = [
 const currentRanks = buildRankMap(sortUsersForRanking(currentPlayers, exactHits));
 assertEq(computeRankChange(baselineRanks.get("b"), currentRanks.get("b")!), 1, "B awansuje z 3. na 2.");
 
-console.log("\nΔ top 10 — wyprzedzeni gracze z dawnej top 10");
-const prevRanksJakub = new Map<string, number>();
-for (let i = 1; i <= 13; i++) prevRanksJakub.set(`p${i}`, i);
-prevRanksJakub.set("jakub", 14);
-const currRanksJakub = new Map<string, number>();
-for (let i = 1; i <= 7; i++) currRanksJakub.set(`p${i}`, i);
-currRanksJakub.set("jakub", 8);
-for (let i = 8; i <= 13; i++) currRanksJakub.set(`p${i}`, i + 1);
-assertEq(
-  computeTopNRankChange("jakub", prevRanksJakub, currRanksJakub, 10),
-  3,
-  "Jakub z 14. na 8. wyprzedza 3 osoby z dawnej top 10",
-);
+assertEq(computeRankChange(14, 8), 6, "Jakub z 14. na 8. = awans o 6 miejsc");
+assertEq(computeRankChange(3, 5), -2, "spadek z 3. na 5. = −2");
 
 // ── Ukrywanie typów przed startem meczu ──────────────────────
 console.log("\nPrediction privacy (API)");

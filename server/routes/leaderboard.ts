@@ -91,7 +91,7 @@ router.get("/", optionalAuth, async (req, res) => {
   const exactHits = await countExactHitsByUser(rawUsers.map((u) => u.id));
   const users = sortUsersForRanking(rawUsers, exactHits);
 
-  const rankKolejkaDelta = await buildRankKolejkaDelta(users, RANKING_TOP_N);
+  const rankKolejkaDelta = await buildRankKolejkaDelta(users);
 
   const now = new Date();
   res.json({
