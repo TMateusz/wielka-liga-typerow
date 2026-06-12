@@ -1,9 +1,12 @@
 import { Router } from "express";
 import { MatchStatus, UserRole } from "@prisma/client";
+import { RANKING_TOP_N } from "../../shared/league-limits.js";
 import { toPublicPrediction } from "../../shared/prediction-privacy.js";
+import { sortUsersForRanking } from "../../shared/rank-order.js";
 import { isExactScorePrediction } from "../../shared/scoring.js";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
+import { buildRankKolejkaDelta } from "../lib/rank-kolejka-delta.js";
 import { getTournamentProgress } from "../lib/tournament-progress.js";
 import { countOnlineUsers, ONLINE_THRESHOLD_MS } from "../../shared/online-presence.js";
 import { optionalAuth } from "../middleware/auth.js";
@@ -86,14 +89,9 @@ router.get("/", optionalAuth, async (req, res) => {
   ]);
 
   const exactHits = await countExactHitsByUser(rawUsers.map((u) => u.id));
-  const users = [...rawUsers].sort((a, b) => {
-    if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
-    const exactDiff = (exactHits.get(b.id) ?? 0) - (exactHits.get(a.id) ?? 0);
-    if (exactDiff !== 0) return exactDiff;
-    const nameA = `${a.firstName} ${a.lastName}`;
-    const nameB = `${b.firstName} ${b.lastName}`;
-    return nameA.localeCompare(nameB, "pl");
-  });
+  const users = sortUsersForRanking(rawUsers, exactHits);
+
+  const rankKolejkaDelta = await buildRankKolejkaDelta(users, RANKING_TOP_N);
 
   const now = new Date();
   res.json({
@@ -103,6 +101,7 @@ router.get("/", optionalAuth, async (req, res) => {
     onlineThresholdMinutes: ONLINE_THRESHOLD_MS / 60_000,
     lastResultUpdate,
     tournamentProgress,
+    rankKolejkaDelta,
   });
 });
 

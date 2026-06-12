@@ -4,6 +4,8 @@ export type Wc2026Game = {
   id: string;
   home_score: string;
   away_score: string;
+  home_scorers?: string;
+  away_scorers?: string;
   finished: string;
   time_elapsed: string;
   type: string;

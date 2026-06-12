@@ -6,6 +6,7 @@ import { prisma } from "./prisma.js";
 type ScoreUpdateOptions = {
   status: MatchStatus;
   knockoutWinner: KnockoutSide | null;
+  liveClock?: string | null;
   adminId?: string | null;
   recordHistory?: boolean;
 };
@@ -16,7 +17,7 @@ async function applyScoreUpdate(
   awayScore: number,
   options: ScoreUpdateOptions,
 ) {
-  const { status, knockoutWinner, adminId, recordHistory } = options;
+  const { status, knockoutWinner, liveClock, adminId, recordHistory } = options;
   const predictions = await prisma.prediction.findMany({ where: { matchId: match.id } });
 
   await prisma.$transaction(async (tx) => {
@@ -56,6 +57,12 @@ async function applyScoreUpdate(
         awayScore,
         knockoutWinner: status === MatchStatus.FINISHED ? knockoutWinner : match.knockoutWinner,
         status,
+        liveClock:
+          status === MatchStatus.FINISHED
+            ? null
+            : liveClock !== undefined
+              ? liveClock
+              : match.liveClock,
         ...(status === MatchStatus.FINISHED ? { resultEnteredAt: new Date() } : {}),
       },
     });
@@ -82,6 +89,7 @@ export async function updateLiveMatchScore(
   matchId: string,
   homeScore: number,
   awayScore: number,
+  liveClock?: string | null,
 ) {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) {
@@ -99,6 +107,7 @@ export async function updateLiveMatchScore(
   await applyScoreUpdate(match, homeScore, awayScore, {
     status: MatchStatus.LIVE,
     knockoutWinner,
+    ...(liveClock !== undefined ? { liveClock } : {}),
   });
 }
 

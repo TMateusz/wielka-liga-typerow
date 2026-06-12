@@ -36,21 +36,43 @@ model User {
   matchResultHistory  MatchResultHistory[]
   matchRemindersSent  MatchReminderSent[]
   chatMessages        ChatMessage[]
+  chatHearts          ChatHeart[]
 
   @@index([totalPoints])
   @@index([role])
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   userId    String
   text      String
-  createdAt DateTime @default(now())
+  parentId  String?
+  editedAt  DateTime?
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  parent  ChatMessage?  @relation("ChatReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies ChatMessage[] @relation("ChatReplies")
+  hearts  ChatHeart[]
 
   @@index([createdAt])
   @@index([userId])
+  @@index([parentId])
+}
+
+model ChatHeart {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
 }
 
 model MatchReminderSent {
@@ -77,6 +99,9 @@ model Match {
   awayScore       Int?
   knockoutWinner  String?
   status          MatchStatus @default(PENDING)
+  liveClock       String?
+  homeScorers     String?
+  awayScorers     String?
   stage         String?
   venue         String?
   lastSyncedAt    DateTime?

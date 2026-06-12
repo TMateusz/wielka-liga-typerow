@@ -18,6 +18,8 @@ import {
   shortVenue,
   toPolishDateKey,
 } from "@shared/calendar-dates";
+import { formatLiveClockDisplay } from "@shared/live-clock";
+import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { api } from "../api/client";
 import { TeamWithFlag } from "../components/TeamWithFlag";
 import { useAuth } from "../contexts/AuthContext";
@@ -33,6 +35,9 @@ type CalendarMatch = {
   venue: string | null;
   homeScore: number | null;
   awayScore: number | null;
+  liveClock?: string | null;
+  homeScorers?: string[];
+  awayScorers?: string[];
 };
 
 type CalendarResponse = {
@@ -83,9 +88,30 @@ function stageAccent(stage: string | null): string {
   return "from-[var(--wc-usa)]/15 to-[var(--wc-canada)]/10";
 }
 
+function GoalScorersList({ scorers, align }: { scorers: string[]; align: "left" | "right" | "center" }) {
+  if (scorers.length === 0) return null;
+
+  const alignClass =
+    align === "left"
+      ? "items-start text-left"
+      : align === "right"
+        ? "items-end text-right"
+        : "items-center text-center";
+
+  return (
+    <ul className={`mt-2 flex w-full flex-col gap-0.5 text-[11px] leading-tight text-white/50 ${alignClass}`}>
+      {scorers.map((scorer, i) => (
+        <li key={`${scorer}-${i}`}>⚽ {scorer}</li>
+      ))}
+    </ul>
+  );
+}
+
 function MatchTimelineCard({ match }: { match: CalendarMatch }) {
   const finished = match.status === "FINISHED";
   const live = match.status === "LIVE";
+  const liveClockLabel = live ? formatLiveClockDisplay(match.liveClock) : null;
+  const showScorers = finished || live;
   const city = shortVenue(match.venue);
 
   return (
@@ -96,6 +122,11 @@ function MatchTimelineCard({ match }: { match: CalendarMatch }) {
         <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-300">
           <Radio className="h-3 w-3 animate-pulse" />
           Na żywo
+          {liveClockLabel && (
+            <span className="font-mono normal-case tracking-normal text-red-200/95">
+              · {liveClockLabel}
+            </span>
+          )}
         </span>
       )}
 
@@ -124,6 +155,9 @@ function MatchTimelineCard({ match }: { match: CalendarMatch }) {
             layout="stack"
             nameClassName="text-sm font-semibold text-white/90 leading-tight"
           />
+          {showScorers && (match.homeScorers?.length ?? 0) > 0 && (
+            <GoalScorersList scorers={match.homeScorers!} align="left" />
+          )}
         </div>
 
         <div className="flex shrink-0 flex-col items-center gap-1 px-2">
@@ -153,6 +187,9 @@ function MatchTimelineCard({ match }: { match: CalendarMatch }) {
             layout="stack"
             nameClassName="text-sm font-semibold text-white/90 leading-tight"
           />
+          {showScorers && (match.awayScorers?.length ?? 0) > 0 && (
+            <GoalScorersList scorers={match.awayScorers!} align="right" />
+          )}
         </div>
       </div>
 
@@ -175,11 +212,11 @@ export default function CalendarPage() {
   const [viewMonth, setViewMonth] = useState(TOURNAMENT_START.month);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const data = await api<CalendarResponse>("/calendar");
-        setMatches(data.matches);
+  async function loadCalendar(silent = false) {
+    try {
+      const data = await api<CalendarResponse>("/calendar");
+      setMatches(data.matches);
+      if (!silent) {
         const initial = getInitialMonth(data.matches);
         setViewYear(initial.year);
         setViewMonth(initial.month);
@@ -196,13 +233,25 @@ export default function CalendarPage() {
           );
           setSelectedDay(firstUpcoming ? toPolishDateKey(firstUpcoming.kickoffTime) : null);
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Nie udało się załadować kalendarza");
-      } finally {
-        setLoading(false);
       }
-    })();
+    } catch (e) {
+      if (!silent) {
+        setError(e instanceof Error ? e.message : "Nie udało się załadować kalendarza");
+      }
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadCalendar();
   }, []);
+
+  useEffect(() => {
+    if (!hasMatchesNeedingLivePoll(matches)) return;
+    const id = setInterval(() => void loadCalendar(true), LIVE_UI_POLL_MS);
+    return () => clearInterval(id);
+  }, [matches]);
 
   const matchesByDay = useMemo(() => {
     const map = new Map<string, CalendarMatch[]>();

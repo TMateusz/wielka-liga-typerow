@@ -4,7 +4,9 @@
  */
 import { resolveActualKnockoutWinner } from "../shared/knockout.js";
 import { canViewPrediction, toPublicPrediction } from "../shared/prediction-privacy.js";
-import { computeRankChange } from "../shared/rank-progress.js";
+import { getKolejkaKey, resolveActiveKolejka } from "../shared/match-kolejka.js";
+import { buildRankMap, sortUsersForRanking } from "../shared/rank-order.js";
+import { computeRankChange, computeTopNRankChange } from "../shared/rank-progress.js";
 import {
   calculatePoints,
   calculateRegulationPoints,
@@ -317,6 +319,49 @@ assertEq(computeRankChange(10, 7), 3, "awans o 3 miejsca → +3");
 assertEq(computeRankChange(5, 6), -1, "spadek o 1 → -1");
 assertEq(computeRankChange(3, 3), 0, "bez zmiany → 0");
 assert(computeRankChange(undefined, 1) === null, "pierwsze odświeżenie → brak danych");
+
+console.log("\nKolejka (dzień meczowy PL)");
+const kolejkaDay = getKolejkaKey("2026-06-11T20:00:00.000Z");
+assert(kolejkaDay.length === 10, "klucz kolejki YYYY-MM-DD");
+const active = resolveActiveKolejka([
+  { kickoffTime: "2026-06-11T18:00:00.000Z", status: "FINISHED" },
+  { kickoffTime: "2026-06-12T18:00:00.000Z", status: "LIVE" },
+]);
+assert(active?.key === kolejkaDay || active != null, "aktywna kolejka przy meczu LIVE");
+
+console.log("\nRanking — kolejka baseline vs bieżący");
+const players = [
+  { id: "a", firstName: "Adam", lastName: "A", totalPoints: 10 },
+  { id: "b", firstName: "Bogdan", lastName: "B", totalPoints: 8 },
+  { id: "c", firstName: "Celina", lastName: "C", totalPoints: 8 },
+];
+const exactHits = new Map([
+  ["a", 2],
+  ["b", 1],
+  ["c", 3],
+]);
+const baselineRanks = buildRankMap(sortUsersForRanking(players, exactHits));
+const currentPlayers = [
+  { id: "a", firstName: "Adam", lastName: "A", totalPoints: 12 },
+  { id: "b", firstName: "Bogdan", lastName: "B", totalPoints: 11 },
+  { id: "c", firstName: "Celina", lastName: "C", totalPoints: 8 },
+];
+const currentRanks = buildRankMap(sortUsersForRanking(currentPlayers, exactHits));
+assertEq(computeRankChange(baselineRanks.get("b"), currentRanks.get("b")!), 1, "B awansuje z 3. na 2.");
+
+console.log("\nΔ top 10 — wyprzedzeni gracze z dawnej top 10");
+const prevRanksJakub = new Map<string, number>();
+for (let i = 1; i <= 13; i++) prevRanksJakub.set(`p${i}`, i);
+prevRanksJakub.set("jakub", 14);
+const currRanksJakub = new Map<string, number>();
+for (let i = 1; i <= 7; i++) currRanksJakub.set(`p${i}`, i);
+currRanksJakub.set("jakub", 8);
+for (let i = 8; i <= 13; i++) currRanksJakub.set(`p${i}`, i + 1);
+assertEq(
+  computeTopNRankChange("jakub", prevRanksJakub, currRanksJakub, 10),
+  3,
+  "Jakub z 14. na 8. wyprzedza 3 osoby z dawnej top 10",
+);
 
 // ── Ukrywanie typów przed startem meczu ──────────────────────
 console.log("\nPrediction privacy (API)");

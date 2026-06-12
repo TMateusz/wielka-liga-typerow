@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { parseStoredScorers } from "../../shared/goal-scorers.js";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
 import { getTournamentProgress } from "../lib/tournament-progress.js";
@@ -28,6 +29,9 @@ router.get("/", requireAuth, async (req, res) => {
       awayTeam: m.awayTeam,
       kickoffTime: m.kickoffTime.toISOString(),
       status: m.status,
+      liveClock: m.liveClock,
+      homeScorers: parseStoredScorers(m.homeScorers),
+      awayScorers: parseStoredScorers(m.awayScorers),
       stage: m.stage,
       homeScore: m.homeScore,
       awayScore: m.awayScore,

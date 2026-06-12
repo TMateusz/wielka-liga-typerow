@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { parseStoredScorers } from "../../shared/goal-scorers.js";
 import { localizeMatch } from "../../shared/team-names.js";
 import { prisma } from "../lib/prisma.js";
 
@@ -18,6 +19,9 @@ router.get("/", async (_req, res) => {
       venue: true,
       homeScore: true,
       awayScore: true,
+      liveClock: true,
+      homeScorers: true,
+      awayScorers: true,
     },
   });
 
@@ -26,6 +30,8 @@ router.get("/", async (_req, res) => {
       localizeMatch({
         ...m,
         kickoffTime: m.kickoffTime.toISOString(),
+        homeScorers: parseStoredScorers(m.homeScorers),
+        awayScorers: parseStoredScorers(m.awayScorers),
       }),
     ),
   });

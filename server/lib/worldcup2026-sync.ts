@@ -1,5 +1,7 @@
 import { MatchStatus } from "@prisma/client";
 import { isDrawScore, isKnockoutStage } from "../../shared/knockout.js";
+import { parseWc2026Scorers, serializeScorers } from "../../shared/goal-scorers.js";
+import { normalizeLiveClock } from "../../shared/live-clock.js";
 import { fetchWorldCup2026Games, type Wc2026Game } from "./worldcup2026-api.js";
 import { setMatchResult, updateLiveMatchScore } from "./match-service.js";
 import { prisma } from "./prisma.js";
@@ -46,6 +48,13 @@ function mapGameStatus(game: Wc2026Game): MatchStatus {
   if (isGameFinished(game)) return MatchStatus.FINISHED;
   if (isGameLive(game)) return MatchStatus.LIVE;
   return MatchStatus.PENDING;
+}
+
+function getScorersPayload(game: Wc2026Game) {
+  return {
+    homeScorers: serializeScorers(parseWc2026Scorers(game.home_scorers)),
+    awayScorers: serializeScorers(parseWc2026Scorers(game.away_scorers)),
+  };
 }
 
 /** Synchronizuje wyniki z worldcup26.ir po numerze meczu (M1–M104). */
@@ -112,12 +121,22 @@ async function applyGameUpdate(
   }
 
   if (match.status === MatchStatus.FINISHED) {
+    const scorers = getScorersPayload(game);
+    if (scorers.homeScorers !== match.homeScorers || scorers.awayScorers !== match.awayScorers) {
+      await prisma.match.update({
+        where: { id: match.id },
+        data: { ...scorers, lastSyncedAt: new Date() },
+      });
+      result.updated++;
+    }
     return;
   }
 
   const homeScore = parseScore(game.home_score);
   const awayScore = parseScore(game.away_score);
   const status = mapGameStatus(game);
+  const liveClock =
+    status === MatchStatus.LIVE ? normalizeLiveClock(game.time_elapsed) : null;
 
   if (
     status === MatchStatus.FINISHED &&
@@ -126,10 +145,10 @@ async function applyGameUpdate(
   ) {
     const knockout = isKnockoutStage(match.stage);
     if (knockout && isDrawScore(homeScore, awayScore)) {
-      await updateLiveMatchScore(match.id, homeScore, awayScore);
+      await updateLiveMatchScore(match.id, homeScore, awayScore, null);
       await prisma.match.update({
         where: { id: match.id },
-        data: { lastSyncedAt: new Date() },
+        data: { lastSyncedAt: new Date(), ...getScorersPayload(game) },
       });
       result.updated++;
       result.errors.push(
@@ -141,7 +160,7 @@ async function applyGameUpdate(
     await setMatchResult(match.id, homeScore, awayScore);
     await prisma.match.update({
       where: { id: match.id },
-      data: { lastSyncedAt: new Date() },
+      data: { lastSyncedAt: new Date(), ...getScorersPayload(game) },
     });
     result.finalized++;
     result.updated++;
@@ -150,10 +169,10 @@ async function applyGameUpdate(
 
   if (status === MatchStatus.LIVE && homeScore != null && awayScore != null) {
     result.live++;
-    await updateLiveMatchScore(match.id, homeScore, awayScore);
+    await updateLiveMatchScore(match.id, homeScore, awayScore, liveClock);
     await prisma.match.update({
       where: { id: match.id },
-      data: { lastSyncedAt: new Date() },
+      data: { lastSyncedAt: new Date(), ...getScorersPayload(game) },
     });
     result.updated++;
     return;
@@ -165,6 +184,8 @@ async function applyGameUpdate(
       status,
       homeScore,
       awayScore,
+      liveClock: status === MatchStatus.LIVE ? liveClock : null,
+      ...getScorersPayload(game),
       lastSyncedAt: new Date(),
     },
   });

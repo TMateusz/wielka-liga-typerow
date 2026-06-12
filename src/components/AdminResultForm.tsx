@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import type { KnockoutSide } from "@shared/knockout";
 import { isDrawScore, isKnockoutStage } from "@shared/knockout";
 import { KnockoutWinnerPick } from "./KnockoutWinnerPick";
+import { ScoreInput } from "./ScoreInput";
 
 type Props = {
   matchId: string;
@@ -58,25 +59,15 @@ export function AdminResultForm({
     <form onSubmit={handleSubmit} className="space-y-3 border-t border-white/10 pt-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-sm text-white/50">{finished ? "Popraw wynik:" : "Wynik:"}</span>
-        <input
-          type="number"
-          min={0}
-          max={20}
-          required
+        <ScoreInput
           value={home}
-          onChange={(e) => setHome(Number(e.target.value))}
-          className="input-score"
+          onChange={setHome}
           aria-label="Bramki gospodarzy"
         />
         <span>:</span>
-        <input
-          type="number"
-          min={0}
-          max={20}
-          required
+        <ScoreInput
           value={away}
-          onChange={(e) => setAway(Number(e.target.value))}
-          className="input-score"
+          onChange={setAway}
           aria-label="Bramki gości"
         />
         <button type="submit" disabled={saving || (needsWinner && !winner)} className="btn-primary ml-1">

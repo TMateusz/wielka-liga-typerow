@@ -20,3 +20,8 @@ prisma/data/
 .DS_Store
 *.log
 backups/
+
+# editor / AI session logs (may contain secrets from chat)
+.specstory/
+.vscode/
+.cursorindexingignore

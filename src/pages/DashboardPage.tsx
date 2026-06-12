@@ -11,7 +11,6 @@ import { UpcomingBetsStrip } from "../components/UpcomingBetsStrip";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { RefreshButton } from "../components/RefreshButton";
 import { MatchCard, type MatchData } from "../components/MatchCard";
-import { RulesUpdateBanner } from "../components/RulesUpdateBanner";
 
 type MatchesResponse = {
   matches: MatchData[];
@@ -143,8 +142,6 @@ export default function DashboardPage() {
           </div>
         </section>
       )}
-
-      <RulesUpdateBanner />
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

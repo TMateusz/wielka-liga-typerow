@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Clock, Lock, CheckCircle2, Radio } from "lucide-react";
 import type { KnockoutSide } from "@shared/knockout";
 import { isKnockoutStage } from "@shared/knockout";
+import { formatLiveClockDisplay } from "@shared/live-clock";
 import { LIVE_UI_POLL_SEC } from "@shared/live-sync";
 import {
   BET_WINDOW_DAYS,
@@ -12,6 +13,7 @@ import {
   isInNextBettingRound,
 } from "@shared/scoring";
 import { KnockoutWinnerPick } from "./KnockoutWinnerPick";
+import { ScoreInput } from "./ScoreInput";
 import { TeamWithFlag } from "./TeamWithFlag";
 
 export type MatchData = {
@@ -20,6 +22,9 @@ export type MatchData = {
   awayTeam: string;
   kickoffTime: string;
   status: string;
+  liveClock?: string | null;
+  homeScorers?: string[];
+  awayScorers?: string[];
   stage: string | null;
   homeScore: number | null;
   awayScore: number | null;
@@ -61,6 +66,7 @@ export function MatchCard({ match, onSave }: Props) {
   const kickoff = new Date(match.kickoffTime);
   const finished = match.status === "FINISHED";
   const live = match.status === "LIVE";
+  const liveClockLabel = live ? formatLiveClockDisplay(match.liveClock) : null;
   const showScore = finished || live;
   const knockout = isKnockoutStage(match.stage);
   const blockReason = finished ? null : getBetBlockReason(match.status, kickoff, now);
@@ -138,6 +144,11 @@ export function MatchCard({ match, onSave }: Props) {
             <span className="inline-flex items-center gap-1 rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-red-300">
               <Radio className="h-3 w-3 animate-pulse" />
               Na żywo
+              {liveClockLabel && (
+                <span className="font-mono normal-case tracking-normal text-red-200/95">
+                  · {liveClockLabel}
+                </span>
+              )}
             </span>
           )}
           {inNextRound && (
@@ -171,6 +182,13 @@ export function MatchCard({ match, onSave }: Props) {
               {match.homeScore}
             </p>
           )}
+          {live && (match.homeScorers?.length ?? 0) > 0 && (
+            <ul className="mt-1 w-full space-y-0.5 text-[11px] leading-tight text-white/50">
+              {match.homeScorers!.map((scorer, i) => (
+                <li key={`${scorer}-${i}`}>⚽ {scorer}</li>
+              ))}
+            </ul>
+          )}
         </div>
         <span className="text-white/40">vs</span>
         <div className="flex flex-col items-center gap-1">
@@ -186,6 +204,13 @@ export function MatchCard({ match, onSave }: Props) {
             >
               {match.awayScore}
             </p>
+          )}
+          {live && (match.awayScorers?.length ?? 0) > 0 && (
+            <ul className="mt-1 w-full space-y-0.5 text-[11px] leading-tight text-white/50">
+              {match.awayScorers!.map((scorer, i) => (
+                <li key={`${scorer}-${i}`}>⚽ {scorer}</li>
+              ))}
+            </ul>
           )}
         </div>
       </div>
@@ -221,25 +246,17 @@ export function MatchCard({ match, onSave }: Props) {
       {!finished && !live && (
         <form onSubmit={handleSubmit} className="flex flex-col items-center gap-3">
           <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min={0}
-              max={20}
+            <ScoreInput
               value={home}
-              onChange={(e) => setHome(Number(e.target.value))}
+              onChange={setHome}
               disabled={locked}
-              className="input-score"
               aria-label={`Bramki ${match.homeTeam}`}
             />
             <span className="text-white/50">:</span>
-            <input
-              type="number"
-              min={0}
-              max={20}
+            <ScoreInput
               value={away}
-              onChange={(e) => setAway(Number(e.target.value))}
+              onChange={setAway}
               disabled={locked}
-              className="input-score"
               aria-label={`Bramki ${match.awayTeam}`}
             />
           </div>

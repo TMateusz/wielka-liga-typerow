@@ -9,11 +9,9 @@ import { formatPoints, getPointsToneClass, isMatchLocked } from "@shared/scoring
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N } from "@shared/league-limits";
 import { countOnlineUsers, formatOnlineCount } from "@shared/online-presence";
-import { computeRankChange } from "@shared/rank-progress";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
-import { RulesUpdateBanner } from "../components/RulesUpdateBanner";
 import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
 import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
 import type { LastResultUpdate } from "../components/LastResultUpdateInfo";
@@ -52,6 +50,12 @@ type Prediction = {
   pointsEarned?: number | null;
 };
 
+type RankKolejkaDelta = {
+  kolejkaKey: string | null;
+  kolejkaLabel: string | null;
+  deltas: Record<string, number | null>;
+};
+
 type LeaderboardData = {
   users: LeaderboardUser[];
   playerCount: number;
@@ -59,6 +63,7 @@ type LeaderboardData = {
   onlineThresholdMinutes?: number;
   lastResultUpdate: LastResultUpdate | null;
   tournamentProgress: TournamentProgress | null;
+  rankKolejkaDelta?: RankKolejkaDelta;
 };
 
 type TipsData = {
@@ -316,8 +321,13 @@ export default function LeaderboardPage() {
   const [showMatrix, setShowMatrix] = useState(true);
   const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
   const [tournamentProgress, setTournamentProgress] = useState<TournamentProgress | null>(null);
+  const [kolejkaLabel, setKolejkaLabel] = useState<string | null>(null);
+  const [topRankChanges, setTopRankChanges] = useState<Map<string, number | null>>(new Map());
   const [now, setNow] = useState(() => new Date());
-  const prevRanksRef = useRef<Map<string, number>>(new Map());
+  const rankDeltaFreezeRef = useRef<{
+    kolejkaKey: string | null;
+    lastResultAt: string | null;
+  } | null>(null);
 
   useEffect(() => {
     const imminentKickoff = matches.some((m) => {
@@ -335,6 +345,22 @@ export default function LeaderboardPage() {
     setUsers(result.users);
     setLastResultUpdate(result.lastResultUpdate ?? null);
     setTournamentProgress(result.tournamentProgress ?? null);
+
+    const delta = result.rankKolejkaDelta;
+    const lastResultAt = result.lastResultUpdate?.at ?? null;
+    const kolejkaKey = delta?.kolejkaKey ?? null;
+    const frozen = rankDeltaFreezeRef.current;
+
+    if (
+      !frozen ||
+      frozen.kolejkaKey !== kolejkaKey ||
+      frozen.lastResultAt !== lastResultAt
+    ) {
+      setTopRankChanges(new Map(Object.entries(delta?.deltas ?? {})));
+      setKolejkaLabel(delta?.kolejkaLabel ?? null);
+      rankDeltaFreezeRef.current = { kolejkaKey, lastResultAt };
+    }
+
     return result;
   }, []);
 
@@ -404,18 +430,6 @@ export default function LeaderboardPage() {
     [users, now],
   );
 
-  const topRankChanges = useMemo(() => {
-    const changes = new Map<string, number | null>();
-    users.slice(0, RANKING_TOP_N).forEach((u, index) => {
-      changes.set(u.id, computeRankChange(prevRanksRef.current.get(u.id), index + 1));
-    });
-    return changes;
-  }, [users]);
-
-  useEffect(() => {
-    prevRanksRef.current = new Map(users.map((u, index) => [u.id, index + 1]));
-  }, [users]);
-
   const rankingDisplay = useMemo(() => {
     const ranked: RankedUser[] = users.map((u, index) => ({ user: u, rank: index + 1 }));
     const top = ranked.slice(0, RANKING_TOP_N);
@@ -437,8 +451,6 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-8">
-      <RulesUpdateBanner />
-
       {!user && (
         <div className="card-pitch flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
           <p className="text-white/70">
@@ -461,6 +473,12 @@ export default function LeaderboardPage() {
           <p className="text-white/60">
             {users.length} graczy · top {RANKING_TOP_N}
             {rankingDisplay.meBelowTop ? " + Twoja pozycja" : ""}
+            {kolejkaLabel && (
+              <>
+                {" "}
+                · Δ top {RANKING_TOP_N} od startu kolejki ({kolejkaLabel})
+              </>
+            )}
           </p>
         </div>
         <RefreshButton loading={refreshing} onClick={() => loadLeaderboard(true)} />
@@ -479,7 +497,10 @@ export default function LeaderboardPage() {
           <thead className="border-b border-white/10 bg-white/5 text-sm uppercase tracking-wide text-white/50">
             <tr>
               <th className="px-4 py-3">#</th>
-              <th className="w-12 px-2 py-3 text-center" title="Zmiana pozycji od ostatniego odświeżenia">
+              <th
+                className="w-12 px-2 py-3 text-center"
+                title="Ilu graczy z poprzedniej top 10 wyprzedzono od startu kolejki (po zakończeniu meczu)"
+              >
                 Δ
               </th>
               <th className="px-4 py-3">Gracz</th>
@@ -503,7 +524,12 @@ export default function LeaderboardPage() {
                     …
                   </td>
                 </tr>
-                <RankingRow entry={rankingDisplay.meBelowTop} isMe />
+                <RankingRow
+                  entry={rankingDisplay.meBelowTop}
+                  isMe
+                  showRankProgress
+                  rankChange={topRankChanges.get(rankingDisplay.meBelowTop.user.id) ?? null}
+                />
               </>
             )}
           </tbody>
