@@ -50,7 +50,7 @@ model ChatMessage {
   editedAt  DateTime?
   deletedAt DateTime?
   createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  updatedAt DateTime  @default(now()) @updatedAt
 
   user    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   parent  ChatMessage?  @relation("ChatReplies", fields: [parentId], references: [id], onDelete: SetNull)
