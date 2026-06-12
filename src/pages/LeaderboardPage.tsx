@@ -53,6 +53,7 @@ type Prediction = {
 type RankKolejkaDelta = {
   kolejkaKey: string | null;
   kolejkaLabel: string | null;
+  hasLiveMatch?: boolean;
   deltas: Record<string, number | null>;
 };
 
@@ -168,7 +169,7 @@ function RankingRow({
 
   return (
     <tr className={`border-b border-white/5 ${isMe ? "bg-[var(--gold)]/10" : ""}`}>
-      <td className="px-4 py-3 font-mono text-white/60">
+      <td className="px-4 py-3 font-mono font-bold text-white/90">
         <span className="flex items-center gap-1">
           {rank <= 3 && (
             <Medal
@@ -187,7 +188,7 @@ function RankingRow({
       <td className="px-2 py-3 text-center">
         {showRankProgress ? <RankProgressBadge change={rankChange ?? null} /> : null}
       </td>
-      <td className="px-4 py-3 font-medium">
+      <td className="px-4 py-3 font-normal text-white/85">
         {getDisplayName(u)}
         {isMe && <span className="ml-2 text-xs text-[var(--gold)]">(Ty)</span>}
       </td>
@@ -325,8 +326,9 @@ export default function LeaderboardPage() {
   const [topRankChanges, setTopRankChanges] = useState<Map<string, number | null>>(new Map());
   const [now, setNow] = useState(() => new Date());
   const rankDeltaFreezeRef = useRef<{
-    kolejkaKey: string | null;
+    matchKey: string | null;
     lastResultAt: string | null;
+    hadLive: boolean;
   } | null>(null);
 
   useEffect(() => {
@@ -348,17 +350,20 @@ export default function LeaderboardPage() {
 
     const delta = result.rankKolejkaDelta;
     const lastResultAt = result.lastResultUpdate?.at ?? null;
-    const kolejkaKey = delta?.kolejkaKey ?? null;
+    const matchKey = delta?.kolejkaKey ?? null;
+    const hasLive = delta?.hasLiveMatch ?? false;
     const frozen = rankDeltaFreezeRef.current;
 
     if (
       !frozen ||
-      frozen.kolejkaKey !== kolejkaKey ||
-      frozen.lastResultAt !== lastResultAt
+      frozen.matchKey !== matchKey ||
+      frozen.lastResultAt !== lastResultAt ||
+      hasLive ||
+      frozen.hadLive
     ) {
       setTopRankChanges(new Map(Object.entries(delta?.deltas ?? {})));
       setKolejkaLabel(delta?.kolejkaLabel ?? null);
-      rankDeltaFreezeRef.current = { kolejkaKey, lastResultAt };
+      rankDeltaFreezeRef.current = { matchKey, lastResultAt, hadLive: hasLive };
     }
 
     return result;
@@ -476,7 +481,7 @@ export default function LeaderboardPage() {
             {kolejkaLabel && (
               <>
                 {" "}
-                · Δ pozycji od startu kolejki ({kolejkaLabel})
+                · Δ od stanu przed {kolejkaLabel}
               </>
             )}
           </p>
@@ -499,7 +504,7 @@ export default function LeaderboardPage() {
               <th className="px-4 py-3">#</th>
               <th
                 className="w-12 px-2 py-3 text-center"
-                title="Zmiana pozycji w rankingu od startu kolejki — +2 = awans o 2 miejsca, −1 = spadek"
+                title="Zmiana pozycji vs stan przed meczem — aktualizacja na żywo podczas meczu; +2 = awans o 2 miejsca"
               >
                 Δ
               </th>

@@ -4,7 +4,11 @@
  */
 import { resolveActualKnockoutWinner } from "../shared/knockout.js";
 import { canViewPrediction, toPublicPrediction } from "../shared/prediction-privacy.js";
-import { getKolejkaKey, resolveActiveKolejka } from "../shared/match-kolejka.js";
+import {
+  getKolejkaKey,
+  resolveActiveKolejka,
+  resolveDeltaReferenceMatch,
+} from "../shared/match-kolejka.js";
 import { buildRankMap, sortUsersForRanking } from "../shared/rank-order.js";
 import { computeRankChange } from "../shared/rank-progress.js";
 import {
@@ -328,6 +332,45 @@ const active = resolveActiveKolejka([
   { kickoffTime: "2026-06-12T18:00:00.000Z", status: "LIVE" },
 ]);
 assert(active?.key === kolejkaDay || active != null, "aktywna kolejka przy meczu LIVE");
+
+console.log("\nΔ — mecz odniesienia (przed / w trakcie / po)");
+const liveRef = resolveDeltaReferenceMatch([
+  {
+    kickoffTime: "2026-06-11T19:00:00.000Z",
+    status: "FINISHED",
+    fixtureNumber: 1,
+    homeTeam: "Meksyk",
+    awayTeam: "RPA",
+  },
+  {
+    kickoffTime: "2026-06-12T19:00:00.000Z",
+    status: "LIVE",
+    fixtureNumber: 3,
+    homeTeam: "Kanada",
+    awayTeam: "Bośnia",
+  },
+]);
+assert(liveRef?.matchKey === "3", "LIVE → baseline przed M3");
+assert(liveRef?.isLive === true, "flaga LIVE");
+
+const afterRef = resolveDeltaReferenceMatch([
+  {
+    kickoffTime: "2026-06-12T02:00:00.000Z",
+    status: "FINISHED",
+    fixtureNumber: 2,
+    homeTeam: "Korea",
+    awayTeam: "Czechy",
+  },
+  {
+    kickoffTime: "2026-06-12T19:00:00.000Z",
+    status: "PENDING",
+    fixtureNumber: 3,
+    homeTeam: "Kanada",
+    awayTeam: "Bośnia",
+  },
+]);
+assert(afterRef?.matchKey === "2", "bez LIVE → ostatni FINISHED (M2)");
+assert(afterRef?.isLive === false, "brak LIVE");
 
 console.log("\nRanking — kolejka baseline vs bieżący");
 const players = [
