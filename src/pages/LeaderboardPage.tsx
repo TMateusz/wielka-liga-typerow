@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, Lock, Medal, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, Lock, Medal, Search } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/display-names";
