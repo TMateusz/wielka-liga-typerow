@@ -11,6 +11,7 @@ import { RANKING_TOP_N } from "@shared/league-limits";
 import { countOnlineUsers, formatOnlineCount } from "@shared/online-presence";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
+import { ChatMentionBanner } from "../components/ChatMentionBanner";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
 import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
 import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
@@ -456,6 +457,8 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-8">
+      <ChatMentionBanner />
+
       {!user && (
         <div className="card-pitch flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
           <p className="text-white/70">

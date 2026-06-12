@@ -37,6 +37,7 @@ model User {
   matchRemindersSent  MatchReminderSent[]
   chatMessages        ChatMessage[]
   chatHearts          ChatHeart[]
+  chatMentions        ChatMention[]
 
   @@index([totalPoints])
   @@index([role])
@@ -54,12 +55,28 @@ model ChatMessage {
 
   user    User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   parent  ChatMessage?  @relation("ChatReplies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies ChatMessage[] @relation("ChatReplies")
-  hearts  ChatHeart[]
+  replies  ChatMessage[]  @relation("ChatReplies")
+  hearts   ChatHeart[]
+  mentions ChatMention[]
 
   @@index([createdAt])
   @@index([userId])
   @@index([parentId])
+}
+
+model ChatMention {
+  id        String    @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+  @@index([messageId])
 }
 
 model ChatHeart {

@@ -13,6 +13,7 @@ import RulesPage from "./pages/RulesPage";
 import CalendarPage from "./pages/CalendarPage";
 import { ChatWidget } from "./components/ChatWidget";
 import { PwaInstallCard } from "./components/PwaInstallCard";
+import { ChatProvider } from "./contexts/ChatContext";
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -41,7 +42,7 @@ export default function App() {
   }
 
   return (
-    <>
+    <ChatProvider>
       <WcBackground />
       <div className="relative mx-auto flex min-h-screen max-w-5xl flex-col px-4 py-6 sm:px-6">
         <Navbar />
@@ -114,6 +115,6 @@ export default function App() {
           </p>
         </footer>
       </div>
-    </>
+    </ChatProvider>
   );
 }

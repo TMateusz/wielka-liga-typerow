@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Radio } from "lucide-react";
+import { ChatMentionBanner } from "../components/ChatMentionBanner";
 import type { KnockoutSide } from "@shared/knockout";
 import { api } from "../api/client";
 import { filterMatchesByTab, getStageTabLabel, STAGE_TABS } from "@shared/match-stages";
@@ -124,6 +125,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      <ChatMentionBanner />
+
       {liveMatches.length > 0 && (
         <section className="space-y-3">
           <div className="flex items-center gap-2">

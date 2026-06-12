@@ -12,8 +12,11 @@ import {
 import { CHAT_MAX_MESSAGE_LENGTH, CHAT_POLL_INTERVAL_MS } from "@shared/chat-limits";
 import { getDisplayName } from "@shared/display-names";
 import { formatLastActive } from "@shared/relative-time";
+import type { MentionUser } from "@shared/chat-mentions";
 import { api } from "../api/client";
+import { MentionInput, MentionText } from "./MentionInput";
 import { useAuth } from "../contexts/AuthContext";
+import { useChat } from "../contexts/ChatContext";
 
 type ChatUser = {
   id: string;
@@ -46,6 +49,10 @@ type ChatMessage = {
 
 type ChatResponse = {
   messages: ChatMessage[];
+};
+
+type MentionUsersResponse = {
+  users: Array<MentionUser & { displayName: string }>;
 };
 
 type MessageGroup = {
@@ -160,7 +167,7 @@ function ParentQuote({ parent }: { parent: ChatParent }) {
 
 export function ChatWidget() {
   const { user } = useAuth();
-  const [open, setOpen] = useState(false);
+  const { open, setOpen, unreadMentions, refreshUnreadMentions } = useChat();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
@@ -172,6 +179,7 @@ export function ChatWidget() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [heartingId, setHeartingId] = useState<string | null>(null);
   const [hasUnread, setHasUnread] = useState(false);
+  const [mentionUsers, setMentionUsers] = useState<MentionUsersResponse["users"]>([]);
   const listRef = useRef<HTMLDivElement>(null);
   const shouldStickToBottom = useRef(true);
 
@@ -220,6 +228,9 @@ export function ChatWidget() {
     if (!open || !user) return;
 
     void loadMessages();
+    void api<MentionUsersResponse>("/chat/users")
+      .then((data) => setMentionUsers(data.users))
+      .catch(() => {});
     const id = setInterval(() => void loadMessages(true), CHAT_POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [open, user, loadMessages]);
@@ -313,6 +324,7 @@ export function ChatWidget() {
       setReplyTo(null);
       shouldStickToBottom.current = true;
       setMessages((prev) => [...prev, data.message]);
+      void refreshUnreadMentions();
       requestAnimationFrame(() => scrollToBottom());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nie udało się wysłać wiadomości");
@@ -516,14 +528,14 @@ export function ChatWidget() {
 
         {isEditing ? (
           <div className="space-y-2">
-            <textarea
+            <MentionInput
               value={editDraft}
-              onChange={(e) =>
-                setEditDraft(e.target.value.slice(0, CHAT_MAX_MESSAGE_LENGTH))
-              }
-              rows={2}
+              onChange={setEditDraft}
+              maxLength={CHAT_MAX_MESSAGE_LENGTH}
+              users={mentionUsers}
+              isAdmin={isAdmin}
+              multiline
               className="w-full resize-none rounded-lg border border-white/15 bg-black/30 px-2 py-1.5 text-sm outline-none focus:border-[var(--wc-gold)]"
-              autoFocus
             />
             <div className="flex gap-2">
               <button
@@ -557,7 +569,7 @@ export function ChatWidget() {
                 <p className="text-sm italic text-white/35">Wiadomość usunięta</p>
               ) : (
                 <p className="whitespace-pre-wrap break-words text-sm leading-snug text-white/90">
-                  {message.text}
+                  <MentionText text={message.text ?? ""} />
                   {message.heartCount > 0 && (
                     <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] text-red-300/90">
                       <Heart className="h-2.5 w-2.5 fill-current" />
@@ -675,14 +687,15 @@ export function ChatWidget() {
         {error && <p className="mb-2 text-xs text-red-400">{error}</p>}
 
         <div className="flex gap-2">
-          <input
-            type="text"
+          <MentionInput
             value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, CHAT_MAX_MESSAGE_LENGTH))}
-            placeholder={replyTo ? "Napisz odpowiedź…" : "Napisz wiadomość…"}
+            onChange={setDraft}
             maxLength={CHAT_MAX_MESSAGE_LENGTH}
-            className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-[var(--wc-gold)]"
+            placeholder={replyTo ? "Napisz odpowiedź… (@ aby wspomnieć)" : "Napisz wiadomość… (@ aby wspomnieć)"}
             disabled={sending || !!editingId}
+            users={mentionUsers}
+            isAdmin={isAdmin}
+            className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-[var(--wc-gold)]"
           />
           <button
             type="submit"
@@ -719,21 +732,21 @@ export function ChatWidget() {
 
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => setOpen(!open)}
         className={`fixed bottom-4 right-4 z-[61] h-14 w-14 items-center justify-center rounded-full border border-[var(--wc-gold)]/40 bg-gradient-to-br from-[#1a2235] to-[#0d111c] text-[var(--wc-gold)] shadow-lg transition hover:scale-105 hover:border-[var(--wc-gold)]/70 hover:shadow-[0_0_24px_rgba(212,175,55,0.25)] ${
           open ? "hidden sm:flex ring-2 ring-[var(--wc-gold)]/50" : "flex"
         }`}
         aria-label={
           open
             ? "Zamknij czat ligowy"
-            : hasUnread
+            : hasUnread || unreadMentions > 0
               ? "Otwórz czat ligowy — nowe wiadomości"
               : "Otwórz czat ligowy"
         }
         aria-expanded={open}
       >
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
-        {hasUnread && !open && (
+        {(hasUnread || unreadMentions > 0) && !open && (
           <span
             className="absolute -right-0.5 -top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs font-bold leading-none text-white shadow-md ring-2 ring-[#0d111c] animate-pulse"
             aria-hidden

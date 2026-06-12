@@ -5,10 +5,17 @@ import {
   CHAT_PARENT_PREVIEW_LENGTH,
 } from "../../shared/chat-limits.js";
 import { getDisplayName } from "../../shared/display-names.js";
+import { resolveMentionedUserIds } from "../../shared/chat-mentions.js";
+import {
+  countUnreadMentions,
+  loadMentionUsers,
+  markMentionsRead,
+  syncMessageMentions,
+} from "../lib/chat-mentions.js";
 import { prisma } from "../lib/prisma.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import { buildUserRankMap } from "../lib/user-ranking.js";
-import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
@@ -141,6 +148,29 @@ function validateText(text: unknown): string | null {
   return trimmed;
 }
 
+router.get("/users", requireAuth, async (_req, res) => {
+  const users = await loadMentionUsers();
+  res.json({
+    users: users.map((u) => ({
+      id: u.id,
+      firstName: u.firstName,
+      lastName: u.lastName,
+      nickname: u.nickname,
+      displayName: getDisplayName(u),
+    })),
+  });
+});
+
+router.get("/mentions/unread", requireAuth, async (req, res) => {
+  const count = await countUnreadMentions(req.user!.id);
+  res.json({ count });
+});
+
+router.post("/mentions/read", requireAuth, async (req, res) => {
+  await markMentionsRead(req.user!.id);
+  res.json({ ok: true });
+});
+
 router.get("/", requireAuth, async (req, res) => {
   const [messages, rankMap] = await Promise.all([
     prisma.chatMessage.findMany({
@@ -179,6 +209,17 @@ router.post("/", requireAuth, sendLimit, async (req, res) => {
     parentId = parent.id;
   }
 
+  const mentionUsers = await loadMentionUsers();
+  const { error: mentionError } = resolveMentionedUserIds(
+    text,
+    mentionUsers,
+    req.user!.id,
+    req.user!.role === "ADMIN",
+  );
+  if (mentionError) {
+    return res.status(400).json({ error: mentionError });
+  }
+
   const rankMap = await buildUserRankMap();
   const message = await prisma.chatMessage.create({
     data: {
@@ -188,6 +229,8 @@ router.post("/", requireAuth, sendLimit, async (req, res) => {
     },
     select: messageSelect,
   });
+
+  await syncMessageMentions(message.id, text, req.user!.id, req.user!.role === "ADMIN");
 
   res.status(201).json({
     message: serializeMessage(message as MessageRow, rankMap, req.user!.id),
@@ -222,12 +265,25 @@ router.patch("/:id", requireAuth, sendLimit, async (req, res) => {
     return res.status(400).json({ error: "Nie można edytować usuniętej wiadomości" });
   }
 
+  const mentionUsers = await loadMentionUsers();
+  const { error: mentionError } = resolveMentionedUserIds(
+    text,
+    mentionUsers,
+    req.user!.id,
+    req.user!.role === "ADMIN",
+  );
+  if (mentionError) {
+    return res.status(400).json({ error: mentionError });
+  }
+
   const rankMap = await buildUserRankMap();
   const message = await prisma.chatMessage.update({
     where: { id },
     data: { text, editedAt: new Date() },
     select: messageSelect,
   });
+
+  await syncMessageMentions(message.id, text, req.user!.id, req.user!.role === "ADMIN");
 
   res.json({ message: serializeMessage(message as MessageRow, rankMap, req.user!.id) });
 });
