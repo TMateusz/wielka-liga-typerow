@@ -501,14 +501,17 @@ export function ChatWidget() {
     );
   }
 
-  function renderMessageLine(message: ChatMessage, isMe: boolean, stacked: boolean) {
+  function innerBubbleClass(isMe: boolean): string {
+    return isMe
+      ? "rounded-xl bg-[var(--wc-gold)]/10 px-2.5 py-1.5 shadow-[0_1px_4px_rgba(0,0,0,0.28)] ring-1 ring-[var(--wc-gold)]/10"
+      : "rounded-xl bg-black/25 px-2.5 py-1.5 shadow-[0_1px_4px_rgba(0,0,0,0.35)] ring-1 ring-white/8";
+  }
+
+  function renderMessageLine(message: ChatMessage, isMe: boolean, segmented: boolean) {
     const isEditing = editingId === message.id;
 
     return (
-      <div
-        key={message.id}
-        className={`group/line ${stacked ? "pt-1" : ""} ${message.parent ? "pt-1.5" : ""}`}
-      >
+      <div key={message.id} className="group/line">
         {message.parent && <ParentQuote parent={message.parent} />}
 
         {isEditing ? (
@@ -544,7 +547,11 @@ export function ChatWidget() {
             </div>
           </div>
         ) : (
-          <div className="flex items-start justify-between gap-1">
+          <div
+            className={`flex items-start justify-between gap-1 ${
+              segmented ? innerBubbleClass(isMe) : ""
+            }`}
+          >
             <div className="min-w-0 flex-1">
               {message.deleted ? (
                 <p className="text-sm italic text-white/35">Wiadomość usunięta</p>
@@ -569,6 +576,7 @@ export function ChatWidget() {
 
   function renderMessageGroup(group: MessageGroup) {
     const lastMessage = group.messages[group.messages.length - 1];
+    const segmented = group.messages.length > 1;
 
     return (
       <article
@@ -581,9 +589,9 @@ export function ChatWidget() {
       >
         <AuthorLabel user={group.user} isMe={group.isMe} />
 
-        <div>
-          {group.messages.map((message, index) =>
-            renderMessageLine(message, group.isMe, index > 0),
+        <div className={segmented ? "space-y-1.5" : ""}>
+          {group.messages.map((message) =>
+            renderMessageLine(message, group.isMe, segmented),
           )}
         </div>
 
