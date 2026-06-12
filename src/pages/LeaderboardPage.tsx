@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ChevronDown, ChevronUp, Lock, Medal, Search } from "lucide-react";
+import { ChevronDown, Lock, Medal, Search } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/display-names";
@@ -319,6 +319,8 @@ export default function LeaderboardPage() {
   const [tipsLoading, setTipsLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [closingUser, setClosingUser] = useState<string | null>(null);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [playerSearch, setPlayerSearch] = useState("");
   const [showMatrix, setShowMatrix] = useState(true);
   const [lastResultUpdate, setLastResultUpdate] = useState<LastResultUpdate | null>(null);
@@ -342,6 +344,32 @@ export default function LeaderboardPage() {
     const id = setInterval(() => setNow(new Date()), intervalMs);
     return () => clearInterval(id);
   }, [matches]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  function toggleExpandedUser(userId: string) {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
+    if (expandedUser === userId) {
+      setClosingUser(userId);
+      setExpandedUser(null);
+      closeTimerRef.current = setTimeout(() => {
+        setClosingUser(null);
+        closeTimerRef.current = null;
+      }, 280);
+      return;
+    }
+
+    setClosingUser(null);
+    setExpandedUser(userId);
+  }
 
   const loadRanking = useCallback(async () => {
     const result = await api<LeaderboardData>("/leaderboard");
@@ -708,14 +736,16 @@ export default function LeaderboardPage() {
               .filter((entry) => entry.prediction);
 
             const isExpanded = expandedUser === u.id;
+            const isOpen = isExpanded || closingUser === u.id;
             const isMe = u.id === user?.id;
 
             return (
               <div key={u.id} className="card-pitch overflow-hidden">
                 <button
                   type="button"
-                  onClick={() => setExpandedUser(isExpanded ? null : u.id)}
-                  className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-white/5"
+                  onClick={() => toggleExpandedUser(u.id)}
+                  aria-expanded={isExpanded}
+                  className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors duration-200 hover:bg-white/5"
                 >
                   <span className="font-medium">
                     {getDisplayName(u)}
@@ -725,88 +755,92 @@ export default function LeaderboardPage() {
                       {formatLastActive(u.lastActiveAt)}
                     </span>
                   </span>
-                  {isExpanded ? (
-                    <ChevronUp className="h-4 w-4 text-white/50" />
-                  ) : (
-                    <ChevronDown className="h-4 w-4 text-white/50" />
-                  )}
+                  <ChevronDown
+                    className={`h-4 w-4 shrink-0 text-white/50 transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                      isExpanded ? "rotate-180" : ""
+                    }`}
+                  />
                 </button>
 
-                {isExpanded && (
-                  <div className="border-t border-white/10 px-4 py-3">
-                    <PlayerStatsPanel
-                      userId={u.id}
-                      predictions={predictions}
-                      matches={matches}
-                    />
-                    {userPredictions.length === 0 ? (
-                      <p className="text-sm text-white/40">Brak typów</p>
-                    ) : (
-                      <ul className="space-y-2">
-                        {userPredictions.map(({ match, prediction }) => {
-                          const finished = match.status === "FINISHED";
-                          const live = match.status === "LIVE";
-                          const locked = isMatchLocked(new Date(match.kickoffTime), now);
-                          return (
-                            <li
-                              key={match.id}
-                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm"
-                            >
-                              <div>
-                                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
-                                  <TeamWithFlag name={match.homeTeam} flagWidth={16} />
-                                  <span className="text-white/40">vs</span>
-                                  <TeamWithFlag name={match.awayTeam} flagWidth={16} />
-                                </span>
-                                <span className="ml-0 mt-1 block text-white/40">{match.stage}</span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                {prediction!.concealed || (!finished && !isMe && !locked) ? (
-                                  <span className="inline-flex items-center gap-1.5 text-white/40">
-                                    <Lock className="h-3.5 w-3.5" />
-                                    Ukryty do rozpoczęcia meczu
+                <div className="wc-disclosure" data-open={isExpanded ? "true" : "false"}>
+                  <div className="wc-disclosure__clip">
+                    {isOpen && (
+                      <div className="wc-disclosure__body border-t border-white/10 px-4 py-3">
+                      <PlayerStatsPanel
+                        userId={u.id}
+                        predictions={predictions}
+                        matches={matches}
+                      />
+                      {userPredictions.length === 0 ? (
+                        <p className="text-sm text-white/40">Brak typów</p>
+                      ) : (
+                        <ul className="space-y-2">
+                          {userPredictions.map(({ match, prediction }) => {
+                            const finished = match.status === "FINISHED";
+                            const live = match.status === "LIVE";
+                            const locked = isMatchLocked(new Date(match.kickoffTime), now);
+                            return (
+                              <li
+                                key={match.id}
+                                className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/5 px-3 py-2 text-sm"
+                              >
+                                <div>
+                                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-medium">
+                                    <TeamWithFlag name={match.homeTeam} flagWidth={16} />
+                                    <span className="text-white/40">vs</span>
+                                    <TeamWithFlag name={match.awayTeam} flagWidth={16} />
                                   </span>
-                                ) : (
-                                  <span className="font-bold">
-                                    Typ: {prediction!.predictedHomeScore}:
-                                    {prediction!.predictedAwayScore}
-                                    {isKnockoutStage(match.stage) &&
-                                      prediction!.predictedKnockoutWinner && (
-                                        <span className="ml-1 text-sm font-medium text-white/55">
-                                          → awans:{" "}
-                                          {prediction!.predictedKnockoutWinner === "HOME"
-                                            ? match.homeTeam
-                                            : match.awayTeam}
+                                  <span className="ml-0 mt-1 block text-white/40">{match.stage}</span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  {prediction!.concealed || (!finished && !isMe && !locked) ? (
+                                    <span className="inline-flex items-center gap-1.5 text-white/40">
+                                      <Lock className="h-3.5 w-3.5" />
+                                      Ukryty do rozpoczęcia meczu
+                                    </span>
+                                  ) : (
+                                    <span className="font-bold">
+                                      Typ: {prediction!.predictedHomeScore}:
+                                      {prediction!.predictedAwayScore}
+                                      {isKnockoutStage(match.stage) &&
+                                        prediction!.predictedKnockoutWinner && (
+                                          <span className="ml-1 text-sm font-medium text-white/55">
+                                            → awans:{" "}
+                                            {prediction!.predictedKnockoutWinner === "HOME"
+                                              ? match.homeTeam
+                                              : match.awayTeam}
+                                          </span>
+                                        )}
+                                    </span>
+                                  )}
+                                  {(finished || live) && match.homeScore != null && match.awayScore != null && (
+                                    <>
+                                      <span className={live ? "text-red-300/80" : "text-white/40"}>
+                                        {live ? "Na żywo" : "Wynik"}: {match.homeScore}:{match.awayScore}
+                                      </span>
+                                      {(finished || live) && prediction!.pointsEarned != null && (
+                                        <span
+                                          className={`font-semibold ${getPointsToneClass(prediction!.pointsEarned!)} ${
+                                            live ? "animate-pulse" : ""
+                                          }`}
+                                          title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+                                        >
+                                          +{formatPoints(prediction!.pointsEarned!)} pkt
+                                          {live ? " (live)" : ""}
                                         </span>
                                       )}
-                                  </span>
-                                )}
-                                {(finished || live) && match.homeScore != null && match.awayScore != null && (
-                                  <>
-                                    <span className={live ? "text-red-300/80" : "text-white/40"}>
-                                      {live ? "Na żywo" : "Wynik"}: {match.homeScore}:{match.awayScore}
-                                    </span>
-                                    {(finished || live) && prediction!.pointsEarned != null && (
-                                      <span
-                                        className={`font-semibold ${getPointsToneClass(prediction!.pointsEarned!)} ${
-                                          live ? "animate-pulse" : ""
-                                        }`}
-                                        title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
-                                      >
-                                        +{formatPoints(prediction!.pointsEarned!)} pkt
-                                        {live ? " (live)" : ""}
-                                      </span>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                                    </>
+                                  )}
+                                </div>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                      </div>
                     )}
                   </div>
-                )}
+                </div>
               </div>
             );
           })}

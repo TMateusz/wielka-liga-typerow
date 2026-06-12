@@ -111,6 +111,44 @@ export async function updateLiveMatchScore(
   });
 }
 
+/** Cofa błędne rozliczenie (np. sync przed startem meczu) i zeruje naliczone punkty. */
+export async function reopenMatch(matchId: string) {
+  const match = await prisma.match.findUnique({ where: { id: matchId } });
+  if (!match || match.status !== MatchStatus.FINISHED) {
+    return;
+  }
+
+  const predictions = await prisma.prediction.findMany({ where: { matchId } });
+
+  await prisma.$transaction(async (tx) => {
+    for (const prediction of predictions) {
+      const oldPoints = prediction.pointsEarned ?? 0;
+      if (oldPoints !== 0) {
+        await tx.user.update({
+          where: { id: prediction.userId },
+          data: { totalPoints: { decrement: oldPoints } },
+        });
+      }
+      await tx.prediction.update({
+        where: { id: prediction.id },
+        data: { pointsEarned: null },
+      });
+    }
+
+    await tx.match.update({
+      where: { id: matchId },
+      data: {
+        status: MatchStatus.PENDING,
+        homeScore: null,
+        awayScore: null,
+        knockoutWinner: null,
+        liveClock: null,
+        resultEnteredAt: null,
+      },
+    });
+  });
+}
+
 /** Zapisuje lub poprawia wynik meczu i przelicza punkty (różnica vs poprzedni wynik). */
 export async function setMatchResult(
   matchId: string,

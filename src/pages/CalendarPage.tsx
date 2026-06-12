@@ -326,8 +326,8 @@ export default function CalendarPage() {
         )}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <section className="card-pitch overflow-hidden p-0">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <section className="card-pitch w-full overflow-hidden p-0 lg:sticky lg:top-6">
           <div className="flex items-center justify-between border-b border-white/10 bg-gradient-to-r from-[var(--wc-usa)]/20 via-[var(--wc-gold)]/10 to-[var(--wc-canada)]/20 px-4 py-4 sm:px-5">
             <button
               type="button"

@@ -7,7 +7,7 @@ import {
 } from "../../shared/goal-scorers.js";
 import { normalizeLiveClock } from "../../shared/live-clock.js";
 import { fetchWorldCup2026Games, type Wc2026Game } from "./worldcup2026-api.js";
-import { setMatchResult, updateLiveMatchScore } from "./match-service.js";
+import { reopenMatch, setMatchResult, updateLiveMatchScore } from "./match-service.js";
 import { prisma } from "./prisma.js";
 
 export type Wc2026SyncResult = {
@@ -42,10 +42,22 @@ function isGameFinished(game: Wc2026Game): boolean {
   return game.finished?.toUpperCase() === "TRUE";
 }
 
+function isGameNotStarted(game: Wc2026Game): boolean {
+  const elapsed = (game.time_elapsed ?? "").trim().toLowerCase();
+  return elapsed.length === 0 || elapsed === "notstarted";
+}
+
 function isGameLive(game: Wc2026Game): boolean {
   if (isGameFinished(game)) return false;
-  const elapsed = (game.time_elapsed ?? "").trim().toLowerCase();
-  return elapsed.length > 0 && elapsed !== "notstarted";
+  return !isGameNotStarted(game);
+}
+
+function isFalseFinish(match: { kickoffTime: Date }, game: Wc2026Game, now = new Date()): boolean {
+  return !isGameFinished(game) && isGameNotStarted(game) && match.kickoffTime.getTime() > now.getTime();
+}
+
+function canFinalizeFromApi(match: { kickoffTime: Date }, now = new Date()): boolean {
+  return match.kickoffTime.getTime() <= now.getTime();
 }
 
 function mapGameStatus(game: Wc2026Game): MatchStatus {
@@ -169,7 +181,7 @@ async function applyGameUpdate(
   fixtureNumber: number,
   result: Wc2026SyncResult,
 ) {
-  const match = await prisma.match.findFirst({
+  let match = await prisma.match.findFirst({
     where: { fixtureNumber },
   });
 
@@ -179,18 +191,25 @@ async function applyGameUpdate(
   }
 
   if (match.status === MatchStatus.FINISHED) {
-    if (scorersNeedUpdate(match, game)) {
-      await prisma.match.update({
-        where: { id: match.id },
-        data: { ...getScorersPayload(game), lastSyncedAt: new Date() },
-      });
+    if (isFalseFinish(match, game)) {
+      await reopenMatch(match.id);
       result.updated++;
+      result.errors.push(`M${fixtureNumber}: cofnięto błędne rozliczenie przed startem meczu`);
+      match = (await prisma.match.findFirst({ where: { fixtureNumber } }))!;
+    } else {
+      if (scorersNeedUpdate(match, game)) {
+        await prisma.match.update({
+          where: { id: match.id },
+          data: { ...getScorersPayload(game), lastSyncedAt: new Date() },
+        });
+        result.updated++;
+      }
+      return;
     }
-    return;
   }
 
-  const homeScore = parseScore(game.home_score);
-  const awayScore = parseScore(game.away_score);
+  const homeScore = isGameNotStarted(game) ? null : parseScore(game.home_score);
+  const awayScore = isGameNotStarted(game) ? null : parseScore(game.away_score);
   const status = mapGameStatus(game);
   const liveClock =
     status === MatchStatus.LIVE ? normalizeLiveClock(game.time_elapsed) : null;
@@ -198,7 +217,8 @@ async function applyGameUpdate(
   if (
     status === MatchStatus.FINISHED &&
     homeScore != null &&
-    awayScore != null
+    awayScore != null &&
+    canFinalizeFromApi(match)
   ) {
     const knockout = isKnockoutStage(match.stage);
     if (knockout && isDrawScore(homeScore, awayScore)) {
