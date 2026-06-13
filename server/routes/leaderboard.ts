@@ -71,6 +71,7 @@ const matchSelect = {
   awayScore: true,
   knockoutWinner: true,
   status: true,
+  liveClock: true,
   kickoffTime: true,
   stage: true,
 } as const;

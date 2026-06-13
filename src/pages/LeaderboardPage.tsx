@@ -5,6 +5,7 @@ import { api } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { getDisplayName, getInitials, orderUsersForTipsTable } from "@shared/display-names";
 import { isKnockoutStage } from "@shared/knockout";
+import { formatLiveClockDisplay } from "@shared/live-clock";
 import { formatPoints, getPointsToneClass, isMatchLocked } from "@shared/scoring";
 import { formatLastActive } from "@shared/relative-time";
 import { RANKING_TOP_N } from "@shared/league-limits";
@@ -36,6 +37,7 @@ type LeaderboardMatch = {
   homeScore: number | null;
   awayScore: number | null;
   status: string;
+  liveClock?: string | null;
   kickoffTime: string;
   stage: string | null;
   knockoutWinner: string | null;
@@ -778,6 +780,7 @@ export default function LeaderboardPage() {
                           {userPredictions.map(({ match, prediction }) => {
                             const finished = match.status === "FINISHED";
                             const live = match.status === "LIVE";
+                            const liveClockLabel = live ? formatLiveClockDisplay(match.liveClock) : null;
                             const locked = isMatchLocked(new Date(match.kickoffTime), now);
                             return (
                               <li
@@ -817,6 +820,11 @@ export default function LeaderboardPage() {
                                     <>
                                       <span className={live ? "text-red-300/80" : "text-white/40"}>
                                         {live ? "Na żywo" : "Wynik"}: {match.homeScore}:{match.awayScore}
+                                        {liveClockLabel && (
+                                          <span className="ml-1 font-mono text-red-200/90">
+                                            ({liveClockLabel})
+                                          </span>
+                                        )}
                                       </span>
                                       {(finished || live) && prediction!.pointsEarned != null && (
                                         <span

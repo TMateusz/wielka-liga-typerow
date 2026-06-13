@@ -5,8 +5,12 @@ import {
   parseWc2026Scorers,
   serializeScorers,
 } from "../../shared/goal-scorers.js";
-import { normalizeLiveClock } from "../../shared/live-clock.js";
+import {
+  needsExternalLiveMinute,
+  normalizeLiveClock,
+} from "../../shared/live-clock.js";
 import { fetchWorldCup2026Games, type Wc2026Game } from "./worldcup2026-api.js";
+import { resolveLiveMinute } from "./live-minute-provider.js";
 import { reopenMatch, setMatchResult, updateLiveMatchScore } from "./match-service.js";
 import { prisma } from "./prisma.js";
 
@@ -211,8 +215,20 @@ async function applyGameUpdate(
   const homeScore = isGameNotStarted(game) ? null : parseScore(game.home_score);
   const awayScore = isGameNotStarted(game) ? null : parseScore(game.away_score);
   const status = mapGameStatus(game);
-  const liveClock =
+  let liveClock =
     status === MatchStatus.LIVE ? normalizeLiveClock(game.time_elapsed) : null;
+
+  if (status === MatchStatus.LIVE && needsExternalLiveMinute(game.time_elapsed)) {
+    const externalMinute = await resolveLiveMinute({
+      homeTeamEn: game.home_team_name_en ?? match.homeTeam,
+      awayTeamEn: game.away_team_name_en ?? match.awayTeam,
+      kickoffTime: match.kickoffTime,
+      fixtureNumber: match.fixtureNumber,
+    });
+    if (externalMinute) {
+      liveClock = externalMinute;
+    }
+  }
 
   if (
     status === MatchStatus.FINISHED &&
