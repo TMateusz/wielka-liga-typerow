@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { execSync } from "node:child_process";
 import { existsSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -55,7 +56,20 @@ if (existsSync(clientIndex)) {
   });
 }
 
+async function syncDatabaseSchema() {
+  try {
+    execSync("npx prisma db push --skip-generate", {
+      stdio: "inherit",
+      env: process.env,
+    });
+  } catch (err) {
+    console.error("Nie udało się zsynchronizować schematu bazy:", err);
+    throw err;
+  }
+}
+
 async function start() {
+  await syncDatabaseSchema();
   await tuneSqlite();
   await ensureSeeded();
 

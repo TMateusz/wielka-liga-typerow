@@ -1,8 +1,7 @@
 import { Match, MatchStatus } from "@prisma/client";
 import { isDrawScore, isKnockoutStage, parseKnockoutSide, type KnockoutSide } from "../../shared/knockout.js";
 import { calculatePoints } from "../../shared/scoring.js";
-import { settleVirtualBetsForMatch } from "./virtual-betting-service.js";
-import { rewardAllFinishedPredictionsForMatch } from "./virtual-token-rewards.js";
+import { runAfterMatchFinished } from "./activity-side-effects.js";
 import { prisma } from "./prisma.js";
 
 type ScoreUpdateOptions = {
@@ -179,6 +178,5 @@ export async function setMatchResult(
     recordHistory: Boolean(adminId),
   });
 
-  await settleVirtualBetsForMatch(matchId);
-  await rewardAllFinishedPredictionsForMatch(matchId);
+  await runAfterMatchFinished(matchId);
 }

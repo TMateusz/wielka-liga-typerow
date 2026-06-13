@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { scheduleActivityReward } from "./activity-side-effects.js";
 import { rewardOnlineSession } from "./virtual-token-rewards.js";
 
 const TOUCH_INTERVAL_MS = 60_000;
@@ -17,7 +18,7 @@ export async function touchUserActivity(userId: string): Promise<void> {
       where: { id: userId },
       data: { lastActiveAt: new Date() },
     });
-    void rewardOnlineSession(userId, new Date(now));
+    scheduleActivityReward(rewardOnlineSession(userId, new Date(now)));
   } catch (err) {
     lastTouchedAt.delete(userId);
     console.error("touchUserActivity:", err);
