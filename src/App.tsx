@@ -11,6 +11,8 @@ import AdminPage from "./pages/AdminPage";
 import SettingsPage from "./pages/SettingsPage";
 import RulesPage from "./pages/RulesPage";
 import CalendarPage from "./pages/CalendarPage";
+import SimulatorPage from "./pages/SimulatorPage";
+import SimulatorRegulaminPage from "./pages/SimulatorRegulaminPage";
 import { ChatWidget } from "./components/ChatWidget";
 import { PwaInstallCard } from "./components/PwaInstallCard";
 import { ChatProvider } from "./contexts/ChatContext";
@@ -68,6 +70,22 @@ export default function App() {
               element={
                 <PrivateRoute>
                   <DashboardPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/symulator/regulamin"
+              element={
+                <PrivateRoute>
+                  <SimulatorRegulaminPage />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/symulator"
+              element={
+                <PrivateRoute>
+                  <SimulatorPage />
                 </PrivateRoute>
               }
             />

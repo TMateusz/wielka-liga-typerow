@@ -16,6 +16,7 @@ import {
   syncWorldCup2026Live,
 } from "../lib/worldcup2026-sync.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { adminSetVirtualBalance } from "../lib/virtual-token-rewards.js";
 
 const router = Router();
 
@@ -193,6 +194,7 @@ const userSelect = {
   totalPoints: true,
   role: true,
   createdAt: true,
+  virtualWallet: { select: { balance: true } },
   _count: { select: { predictions: true } },
 } as const;
 
@@ -270,6 +272,31 @@ router.patch("/users/:id", async (req, res) => {
   });
 
   res.json({ ...updated, createdAt: updated.createdAt.toISOString() });
+});
+
+router.patch("/users/:id/wallet", async (req, res) => {
+  const { id } = req.params;
+  const balanceRaw = req.body.balance;
+
+  if (typeof balanceRaw !== "number" || !Number.isFinite(balanceRaw)) {
+    return res.status(400).json({ error: "Podaj liczbę całkowitą balance" });
+  }
+
+  const balance = Math.trunc(balanceRaw);
+
+  const existing = await prisma.user.findUnique({ where: { id } });
+  if (!existing) {
+    return res.status(404).json({ error: "Użytkownik nie istnieje" });
+  }
+
+  try {
+    const result = await adminSetVirtualBalance(id, balance);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({
+      error: e instanceof Error ? e.message : "Nie udało się zaktualizować salda punktów",
+    });
+  }
 });
 
 router.get("/result-history", async (req, res) => {

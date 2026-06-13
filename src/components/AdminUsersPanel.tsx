@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil, Trash2, UserCog } from "lucide-react";
+import { Coins, Pencil, Trash2, UserCog } from "lucide-react";
 import { formatPoints } from "@shared/scoring";
+import { formatActivityPoints } from "@shared/simulator";
 import { api } from "../api/client";
 import { getDisplayName } from "@shared/user-display";
 
@@ -12,6 +13,7 @@ type AdminUser = {
   totalPoints: number;
   role: "USER" | "ADMIN";
   createdAt: string;
+  virtualWallet: { balance: number } | null;
   _count: { predictions: number };
 };
 
@@ -25,6 +27,7 @@ export function AdminUsersPanel({ onMessage }: Props) {
   const [search, setSearch] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [walletSavingId, setWalletSavingId] = useState<string | null>(null);
 
   const loadUsers = useCallback(async () => {
     const data = await api<AdminUser[]>("/admin/users");
@@ -69,6 +72,40 @@ export function AdminUsersPanel({ onMessage }: Props) {
     }
   }
 
+  async function submitWallet(e: FormEvent<HTMLFormElement>, user: AdminUser) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const balance = Number(form.get("balance"));
+
+    if (!Number.isFinite(balance) || balance < 0) {
+      onMessage("Podaj nieujemną liczbę całkowitą punktów aktywności");
+      return;
+    }
+
+    setWalletSavingId(user.id);
+    try {
+      const result = await api<{ balance: number; previousBalance: number }>(
+        `/admin/users/${user.id}/wallet`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ balance: Math.trunc(balance) }),
+        },
+      );
+      setUsers((prev) =>
+        prev.map((row) =>
+          row.id === user.id ? { ...row, virtualWallet: { balance: result.balance } } : row,
+        ),
+      );
+      onMessage(
+        `@${user.nickname}: saldo ${formatActivityPoints(result.previousBalance)} → ${formatActivityPoints(result.balance)} pkt aktywności`,
+      );
+    } catch (err) {
+      onMessage(err instanceof Error ? err.message : "Błąd zapisu salda");
+    } finally {
+      setWalletSavingId(null);
+    }
+  }
+
   async function deleteUser(user: AdminUser) {
     const label = getDisplayName(user);
     if (!window.confirm(`Usunąć gracza ${label} (@${user.nickname})? Typy zostaną skasowane.`)) {
@@ -95,7 +132,7 @@ export function AdminUsersPanel({ onMessage }: Props) {
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-white/50">
-          {playerCount} graczy · edycja nicków, imion i usuwanie kont
+          {playerCount} graczy · edycja nicków, punktów aktywności i usuwanie kont
         </p>
         <input
           type="search"
@@ -114,6 +151,7 @@ export function AdminUsersPanel({ onMessage }: Props) {
         {filtered.map((u) => {
           const isEditing = editingId === u.id;
           const isAdmin = u.role === "ADMIN";
+          const tokenBalance = u.virtualWallet?.balance ?? null;
 
           return (
             <div key={u.id} className="card-pitch space-y-3 p-4">
@@ -130,6 +168,14 @@ export function AdminUsersPanel({ onMessage }: Props) {
                   </p>
                   <p className="text-sm text-white/50">
                     @{u.nickname} · {formatPoints(u.totalPoints)} pkt · {u._count.predictions} typów
+                    {tokenBalance != null && (
+                      <>
+                        {" · "}
+                        <span className="text-[var(--wc-gold)]/90">
+                          {formatActivityPoints(tokenBalance)} pkt aktywności
+                        </span>
+                      </>
+                    )}
                   </p>
                   <p className="text-xs text-white/35">
                     Dołączył: {new Date(u.createdAt).toLocaleString("pl-PL")}
@@ -158,6 +204,40 @@ export function AdminUsersPanel({ onMessage }: Props) {
                   )}
                 </div>
               </div>
+
+              <form
+                onSubmit={(e) => void submitWallet(e, u)}
+                className="flex flex-wrap items-end gap-3 rounded-lg border border-white/10 bg-white/5 p-3"
+              >
+                <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-white/45">
+                  <Coins className="h-3.5 w-3.5 text-[var(--wc-gold)]" />
+                  Punkty aktywności
+                </div>
+                <div className="flex flex-1 flex-wrap items-end gap-2">
+                  <div>
+                    <label className="mb-1 block text-xs text-white/50">Saldo (pkt aktywności)</label>
+                    <input
+                      key={`wallet-${u.id}-${tokenBalance ?? "none"}`}
+                      name="balance"
+                      type="number"
+                      min={0}
+                      step={1}
+                      defaultValue={tokenBalance ?? 0}
+                      className="w-32 rounded-lg border border-white/20 bg-white/10 px-3 py-2 font-mono text-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={walletSavingId === u.id}
+                    className="btn-primary text-sm disabled:opacity-60"
+                  >
+                    {walletSavingId === u.id ? "Zapisywanie…" : "Ustaw saldo"}
+                  </button>
+                  {tokenBalance == null && (
+                    <span className="pb-2 text-xs text-white/35">Brak konta — zostanie utworzone</span>
+                  )}
+                </div>
+              </form>
 
               {isEditing && (
                 <form

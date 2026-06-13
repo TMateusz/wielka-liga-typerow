@@ -15,6 +15,7 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import { buildUserRankMap } from "../lib/user-ranking.js";
+import { rewardChatHeart, rewardChatMessage, rewardOnlineSession } from "../lib/virtual-token-rewards.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
@@ -232,6 +233,9 @@ router.post("/", requireAuth, sendLimit, async (req, res) => {
 
   await syncMessageMentions(message.id, text, req.user!.id, req.user!.role === "ADMIN");
 
+  void rewardChatMessage(req.user!.id);
+  void rewardOnlineSession(req.user!.id);
+
   res.status(201).json({
     message: serializeMessage(message as MessageRow, rankMap, req.user!.id),
   });
@@ -320,6 +324,7 @@ router.post("/:id/heart", requireAuth, actionLimit, async (req, res) => {
   } else {
     await prisma.chatHeart.create({ data: { messageId: id, userId } });
     hearted = true;
+    void rewardChatHeart(userId, id);
   }
 
   const heartCount = await prisma.chatHeart.count({ where: { messageId: id } });

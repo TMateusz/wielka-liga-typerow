@@ -3,6 +3,7 @@ import { isKnockoutStage, parseKnockoutSide } from "../../shared/knockout.js";
 import { BET_WINDOW_DAYS, canBetOnMatch, getBetBlockReason } from "../../shared/scoring.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
+import { rewardBetPlaced, rewardOnlineSession } from "../lib/virtual-token-rewards.js";
 
 const router = Router();
 
@@ -65,6 +66,9 @@ router.post("/", requireAuth, async (req, res) => {
       data: { lastActiveAt: new Date() },
     }),
   ]);
+
+  void rewardBetPlaced(req.user!.id, matchId);
+  void rewardOnlineSession(req.user!.id);
 
   res.json(prediction);
 });

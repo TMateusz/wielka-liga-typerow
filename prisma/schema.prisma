@@ -18,6 +18,19 @@ enum UserRole {
   ADMIN
 }
 
+enum VirtualBetSelection {
+  HOME
+  DRAW
+  AWAY
+}
+
+enum VirtualBetStatus {
+  PENDING
+  WON
+  LOST
+  VOID
+}
+
 model User {
   id           String       @id @default(cuid())
   firstName    String
@@ -28,6 +41,7 @@ model User {
   password     String
   totalPoints  Float        @default(0)
   role           UserRole     @default(USER)
+  hasAcceptedSimulatorTerms Boolean @default(false)
   registrationIp String?
   lastActiveAt   DateTime     @default(now())
   createdAt      DateTime     @default(now())
@@ -38,6 +52,8 @@ model User {
   chatMessages        ChatMessage[]
   chatHearts          ChatHeart[]
   chatMentions        ChatMention[]
+  virtualWallet       VirtualWallet?
+  virtualBets         VirtualBet[]
 
   @@index([totalPoints])
   @@index([role])
@@ -128,6 +144,8 @@ model Match {
   predictions    Prediction[]
   resultHistory  MatchResultHistory[]
   remindersSent  MatchReminderSent[]
+  virtualOdds    VirtualOdds?
+  virtualBets    VirtualBet[]
 
   @@index([kickoffTime])
   @@index([status])
@@ -169,4 +187,59 @@ model Prediction {
   @@unique([userId, matchId])
   @@index([matchId])
   @@index([userId])
+}
+
+model VirtualWallet {
+  userId    String   @id
+  balance   Int      @default(1000)
+  updatedAt DateTime @updatedAt
+
+  user   User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ledger VirtualTokenLedger[]
+}
+
+model VirtualTokenLedger {
+  id           String   @id @default(cuid())
+  userId       String
+  amount       Int
+  reason       String
+  referenceKey String
+  createdAt    DateTime @default(now())
+
+  wallet VirtualWallet @relation(fields: [userId], references: [userId], onDelete: Cascade)
+
+  @@unique([userId, referenceKey])
+  @@index([userId, createdAt])
+}
+
+model VirtualOdds {
+  matchId   String   @id
+  homeOdds  Float
+  drawOdds  Float
+  awayOdds  Float
+  source    String
+  fetchedAt DateTime @default(now())
+
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+}
+
+model VirtualBet {
+  id        String              @id @default(cuid())
+  userId    String
+  matchId   String
+  selection VirtualBetSelection
+  stake     Int
+  odds      Float
+  status    VirtualBetStatus    @default(PENDING)
+  payout    Int?
+  createdAt DateTime            @default(now())
+  settledAt DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  match Match @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+  @@index([userId])
+  @@index([matchId])
+  @@index([status])
 }

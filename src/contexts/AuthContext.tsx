@@ -18,6 +18,7 @@ export type User = {
   emailRemindersEnabled?: boolean;
   role: "USER" | "ADMIN";
   totalPoints?: number;
+  hasAcceptedSimulatorTerms?: boolean;
 };
 
 type AuthContextType = {

@@ -36,6 +36,7 @@ const userSelect = {
   emailRemindersEnabled: true,
   role: true,
   totalPoints: true,
+  hasAcceptedSimulatorTerms: true,
 } as const;
 
 function validateRegistration(body: Record<string, unknown>) {
