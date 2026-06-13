@@ -7,7 +7,7 @@ import {
   type VirtualBetSelection as Selection,
 } from "../../shared/simulator.js";
 import { localizeMatch } from "../../shared/team-names.js";
-import { resolveMatchOdds } from "./odds-provider.js";
+import { resolveMatchOdds, simulatorOddsNeedRefresh } from "./odds-provider.js";
 import { prisma } from "./prisma.js";
 
 export async function getOrCreateWallet(userId: string) {
@@ -19,8 +19,14 @@ export async function getOrCreateWallet(userId: string) {
   });
 }
 
-function oddsLookInvalid(odds: { homeOdds: number; drawOdds: number; awayOdds: number }): boolean {
-  return odds.homeOdds < 1.01 || odds.drawOdds < 1.01 || odds.awayOdds < 1.01;
+function oddsLookInvalid(odds: {
+  homeOdds: number;
+  drawOdds: number;
+  awayOdds: number;
+  source: string;
+  fetchedAt: Date;
+}): boolean {
+  return simulatorOddsNeedRefresh(odds);
 }
 
 export async function ensureOddsForMatch(matchId: string) {
@@ -30,7 +36,7 @@ export async function ensureOddsForMatch(matchId: string) {
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Nie znaleziono meczu");
 
-  const odds = await resolveMatchOdds({
+  const odds = resolveMatchOdds({
     fixtureNumber: match.fixtureNumber,
     homeTeam: match.homeTeam,
     awayTeam: match.awayTeam,
@@ -45,12 +51,14 @@ export async function ensureOddsForMatch(matchId: string) {
       drawOdds: odds.drawOdds,
       awayOdds: odds.awayOdds,
       source: odds.source,
+      fetchedAt: new Date(),
     },
     update: {
       homeOdds: odds.homeOdds,
       drawOdds: odds.drawOdds,
       awayOdds: odds.awayOdds,
       source: odds.source,
+      fetchedAt: new Date(),
     },
   });
 }
@@ -227,8 +235,11 @@ export async function getSimulatorState(userId: string) {
     userBets.filter((b) => b.status === VirtualBetStatus.PENDING).map((b) => [b.matchId, b]),
   );
 
-  const needsOdds = matches.filter((m) => !oddsByMatch.has(m.id)).slice(0, 5);
-  for (const m of needsOdds) {
+  const needsOddsRefresh = matches.filter((m) => {
+    const odds = oddsByMatch.get(m.id);
+    return !odds || oddsLookInvalid(odds);
+  });
+  for (const m of needsOddsRefresh) {
     try {
       const row = await ensureOddsForMatch(m.id);
       oddsByMatch.set(m.id, row);

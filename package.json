@@ -14,6 +14,7 @@
     "db:seed": "tsx --env-file=.env prisma/seed.ts",
     "db:setup": "prisma db push && tsx --env-file=.env prisma/seed.ts && tsx --env-file=.env scripts/import-fixtures.ts",
     "import:fixtures": "tsx --env-file=.env scripts/import-fixtures.ts",
+    "sync:simulator-odds": "tsx --env-file=.env scripts/sync-simulator-odds.ts",
     "refresh:kickoffs": "node dist/scripts/refresh-kickoff-times.js",
     "refresh:kickoffs:dev": "tsx --env-file=.env scripts/refresh-kickoff-times.ts",
     "seed:demo": "tsx --env-file=.env scripts/seed-demo-players.ts",

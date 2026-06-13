@@ -97,11 +97,12 @@ function statusLabel(status: string) {
   return status;
 }
 
-function OddsSourceBadge({ source }: { source: string }) {
-  if (source === "the-odds-api") {
-    return <span className="text-[10px] text-emerald-400/80">mnożniki z API</span>;
-  }
-  return <span className="text-[10px] text-white/35">mnożniki symulowane</span>;
+function OddsSourceBadge() {
+  return (
+    <span className="text-[10px] text-white/45" title="Na podstawie rankingu siły reprezentacji (model Elo)">
+      kursy wg siły drużyn
+    </span>
+  );
 }
 
 export default function SimulatorPage() {
@@ -355,7 +356,7 @@ export default function SimulatorPage() {
                   ) : (
                     <>
                       <div className="mb-3 flex justify-center">
-                        <OddsSourceBadge source={match.odds.source} />
+                        <OddsSourceBadge />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {(

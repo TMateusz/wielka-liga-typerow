@@ -71,6 +71,15 @@ export function translateTeamName(name: string): string {
   return name;
 }
 
+const ENGLISH_BY_POLISH = Object.fromEntries(
+  Object.entries(TEAM_NAMES_PL).map(([en, pl]) => [pl, en]),
+);
+
+/** Polska nazwa z bazy → angielska (do modelu siły drużyn). */
+export function toEnglishTeamName(name: string): string {
+  return ENGLISH_BY_POLISH[name] ?? name;
+}
+
 export function localizeMatch<T extends { homeTeam: string; awayTeam: string }>(match: T): T {
   return {
     ...match,
