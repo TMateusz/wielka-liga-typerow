@@ -19,9 +19,13 @@ export async function getOrCreateWallet(userId: string) {
   });
 }
 
+function oddsLookInvalid(odds: { homeOdds: number; drawOdds: number; awayOdds: number }): boolean {
+  return odds.homeOdds < 1.01 || odds.drawOdds < 1.01 || odds.awayOdds < 1.01;
+}
+
 export async function ensureOddsForMatch(matchId: string) {
   const existing = await prisma.virtualOdds.findUnique({ where: { matchId } });
-  if (existing) return existing;
+  if (existing && !oddsLookInvalid(existing)) return existing;
 
   const match = await prisma.match.findUnique({ where: { id: matchId } });
   if (!match) throw new Error("Nie znaleziono meczu");
@@ -33,9 +37,16 @@ export async function ensureOddsForMatch(matchId: string) {
     kickoffTime: match.kickoffTime,
   });
 
-  return prisma.virtualOdds.create({
-    data: {
+  return prisma.virtualOdds.upsert({
+    where: { matchId },
+    create: {
       matchId,
+      homeOdds: odds.homeOdds,
+      drawOdds: odds.drawOdds,
+      awayOdds: odds.awayOdds,
+      source: odds.source,
+    },
+    update: {
       homeOdds: odds.homeOdds,
       drawOdds: odds.drawOdds,
       awayOdds: odds.awayOdds,

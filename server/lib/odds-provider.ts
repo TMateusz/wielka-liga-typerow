@@ -84,9 +84,9 @@ export function generateSimulatorOdds(fixtureNumber: number): OddsTriple {
   const margin = 1.08;
 
   return {
-    homeOdds: Math.round((margin / (homeRaw * inv)) * 100) / 100,
-    drawOdds: Math.round((margin / (drawRaw * inv)) * 100) / 100,
-    awayOdds: Math.round((margin / (awayRaw * inv)) * 100) / 100,
+    homeOdds: Math.round(((homeRaw * inv) / margin) * 100) / 100,
+    drawOdds: Math.round(((drawRaw * inv) / margin) * 100) / 100,
+    awayOdds: Math.round(((awayRaw * inv) / margin) * 100) / 100,
     source: "simulator",
   };
 }
