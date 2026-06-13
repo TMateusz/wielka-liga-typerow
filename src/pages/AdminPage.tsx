@@ -4,6 +4,7 @@ import { formatLastActive } from "@shared/relative-time";
 import { api } from "../api/client";
 import { AdminResultForm } from "../components/AdminResultForm";
 import { AdminUsersPanel } from "../components/AdminUsersPanel";
+import { AdminOddsEditor, type SimulatorOddsDto } from "../components/AdminOddsEditor";
 import type { KnockoutSide } from "@shared/knockout";
 import { isPlaceholderMatch } from "@shared/placeholders";
 import { TeamWithFlag } from "../components/TeamWithFlag";
@@ -21,6 +22,7 @@ type AdminMatch = {
   knockoutWinner: string | null;
   predictionCount?: number;
   playerCount?: number;
+  simulatorOdds: SimulatorOddsDto | null;
 };
 
 type ResultHistoryEntry = {
@@ -325,6 +327,21 @@ export default function AdminPage() {
                     Zapisz drużyny
                   </button>
                 </form>
+              )}
+
+              {match.status !== "FINISHED" && (
+                <AdminOddsEditor
+                  matchId={match.id}
+                  homeTeam={match.homeTeam}
+                  awayTeam={match.awayTeam}
+                  initialOdds={match.simulatorOdds}
+                  onSaved={(simulatorOdds) =>
+                    setMatches((prev) =>
+                      prev.map((m) => (m.id === match.id ? { ...m, simulatorOdds } : m)),
+                    )
+                  }
+                  onMessage={setMessage}
+                />
               )}
 
               <AdminResultForm

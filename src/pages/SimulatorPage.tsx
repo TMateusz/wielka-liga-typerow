@@ -97,7 +97,10 @@ function statusLabel(status: string) {
   return status;
 }
 
-function OddsSourceBadge() {
+function OddsSourceBadge({ source }: { source: string }) {
+  if (source === "admin-manual") {
+    return <span className="text-[10px] text-amber-400/80">kursy admina</span>;
+  }
   return (
     <span className="text-[10px] text-white/45" title="Na podstawie rankingu siły reprezentacji (model Elo)">
       kursy wg siły drużyn
@@ -356,7 +359,7 @@ export default function SimulatorPage() {
                   ) : (
                     <>
                       <div className="mb-3 flex justify-center">
-                        <OddsSourceBadge />
+                        <OddsSourceBadge source={match.odds.source} />
                       </div>
                       <div className="grid grid-cols-3 gap-2">
                         {(

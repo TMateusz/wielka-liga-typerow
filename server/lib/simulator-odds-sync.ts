@@ -5,7 +5,7 @@ import {
   balancedKnockoutOdds,
   oddsFromTeamStrength,
 } from "../data/team-strength.js";
-import { TEAM_STRENGTH_ODDS_SOURCE, type OddsTriple } from "./odds-provider.js";
+import { ADMIN_ODDS_SOURCE, TEAM_STRENGTH_ODDS_SOURCE, type OddsTriple } from "./odds-provider.js";
 import { prisma } from "./prisma.js";
 
 export type SyncSimulatorOddsResult = {
@@ -45,6 +45,12 @@ export async function syncSimulatorOdds(): Promise<SyncSimulatorOddsResult> {
 
   for (const match of matches) {
     try {
+      const existing = await prisma.virtualOdds.findUnique({ where: { matchId: match.id } });
+      if (existing?.source === ADMIN_ODDS_SOURCE) {
+        result.skipped++;
+        continue;
+      }
+
       const odds = oddsForMatch(match.homeTeam, match.awayTeam);
       await prisma.virtualOdds.upsert({
         where: { matchId: match.id },

@@ -13,6 +13,7 @@ export type OddsTriple = {
 };
 
 export const TEAM_STRENGTH_ODDS_SOURCE = "team-strength";
+export const ADMIN_ODDS_SOURCE = "admin-manual";
 export const SIMULATOR_ODDS_SOURCE = TEAM_STRENGTH_ODDS_SOURCE;
 
 const LEGACY_SOURCES = new Set([
@@ -53,6 +54,6 @@ export function simulatorOddsNeedRefresh(odds: {
   source: string;
 }): boolean {
   if (odds.homeOdds < 1.01 || odds.drawOdds < 1.01 || odds.awayOdds < 1.01) return true;
-  if (odds.source === TEAM_STRENGTH_ODDS_SOURCE) return false;
+  if (odds.source === ADMIN_ODDS_SOURCE || odds.source === TEAM_STRENGTH_ODDS_SOURCE) return false;
   return LEGACY_SOURCES.has(odds.source);
 }

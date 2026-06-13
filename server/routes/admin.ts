@@ -17,6 +17,8 @@ import {
 } from "../lib/worldcup2026-sync.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { adminSetVirtualBalance } from "../lib/virtual-token-rewards.js";
+import { ADMIN_ODDS_SOURCE, resolveMatchOdds } from "../lib/odds-provider.js";
+import { rebalanceOdds, type OddsField } from "../../shared/odds-rebalance.js";
 
 const router = Router();
 
@@ -71,6 +73,7 @@ router.get("/matches", async (_req, res) => {
     prisma.match.findMany({
       orderBy: { kickoffTime: "asc" },
       include: {
+        virtualOdds: true,
         _count: {
           select: {
             predictions: {
@@ -99,8 +102,137 @@ router.get("/matches", async (_req, res) => {
       }),
       predictionCount: m._count.predictions,
       playerCount,
+      simulatorOdds: m.virtualOdds
+        ? {
+            homeOdds: m.virtualOdds.homeOdds,
+            drawOdds: m.virtualOdds.drawOdds,
+            awayOdds: m.virtualOdds.awayOdds,
+            source: m.virtualOdds.source,
+            fetchedAt: m.virtualOdds.fetchedAt.toISOString(),
+          }
+        : null,
     }))
   );
+});
+
+router.patch("/matches/:id/odds", async (req, res) => {
+  const { id } = req.params;
+  const field = req.body.field as OddsField | undefined;
+  const valueRaw = req.body.value;
+
+  if (field !== "homeOdds" && field !== "drawOdds" && field !== "awayOdds") {
+    return res.status(400).json({ error: "Pole field musi być homeOdds, drawOdds lub awayOdds" });
+  }
+
+  if (typeof valueRaw !== "number" || !Number.isFinite(valueRaw)) {
+    return res.status(400).json({ error: "Podaj liczbę value (kurs)" });
+  }
+
+  const match = await prisma.match.findUnique({ where: { id } });
+  if (!match) {
+    return res.status(404).json({ error: "Mecz nie istnieje" });
+  }
+
+  if (match.status === "FINISHED") {
+    return res.status(409).json({ error: "Nie można zmienić kursów po zakończeniu meczu" });
+  }
+
+  const existing = await prisma.virtualOdds.findUnique({ where: { matchId: id } });
+  const current = existing
+    ? {
+        homeOdds: existing.homeOdds,
+        drawOdds: existing.drawOdds,
+        awayOdds: existing.awayOdds,
+      }
+    : resolveMatchOdds({
+        fixtureNumber: match.fixtureNumber,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        kickoffTime: match.kickoffTime,
+      });
+
+  let rebalanced;
+  try {
+    rebalanced = rebalanceOdds(current, field, valueRaw);
+  } catch (error) {
+    return res.status(400).json({
+      error: error instanceof Error ? error.message : "Nieprawidłowy kurs",
+    });
+  }
+
+  const row = await prisma.virtualOdds.upsert({
+    where: { matchId: id },
+    create: {
+      matchId: id,
+      homeOdds: rebalanced.homeOdds,
+      drawOdds: rebalanced.drawOdds,
+      awayOdds: rebalanced.awayOdds,
+      source: ADMIN_ODDS_SOURCE,
+      fetchedAt: new Date(),
+    },
+    update: {
+      homeOdds: rebalanced.homeOdds,
+      drawOdds: rebalanced.drawOdds,
+      awayOdds: rebalanced.awayOdds,
+      source: ADMIN_ODDS_SOURCE,
+      fetchedAt: new Date(),
+    },
+  });
+
+  res.json({
+    homeOdds: row.homeOdds,
+    drawOdds: row.drawOdds,
+    awayOdds: row.awayOdds,
+    source: row.source,
+    fetchedAt: row.fetchedAt.toISOString(),
+  });
+});
+
+router.post("/matches/:id/odds/reset", async (req, res) => {
+  const { id } = req.params;
+
+  const match = await prisma.match.findUnique({ where: { id } });
+  if (!match) {
+    return res.status(404).json({ error: "Mecz nie istnieje" });
+  }
+
+  if (match.status === "FINISHED") {
+    return res.status(409).json({ error: "Mecz zakończony" });
+  }
+
+  const model = resolveMatchOdds({
+    fixtureNumber: match.fixtureNumber,
+    homeTeam: match.homeTeam,
+    awayTeam: match.awayTeam,
+    kickoffTime: match.kickoffTime,
+  });
+
+  const row = await prisma.virtualOdds.upsert({
+    where: { matchId: id },
+    create: {
+      matchId: id,
+      homeOdds: model.homeOdds,
+      drawOdds: model.drawOdds,
+      awayOdds: model.awayOdds,
+      source: model.source,
+      fetchedAt: new Date(),
+    },
+    update: {
+      homeOdds: model.homeOdds,
+      drawOdds: model.drawOdds,
+      awayOdds: model.awayOdds,
+      source: model.source,
+      fetchedAt: new Date(),
+    },
+  });
+
+  res.json({
+    homeOdds: row.homeOdds,
+    drawOdds: row.drawOdds,
+    awayOdds: row.awayOdds,
+    source: row.source,
+    fetchedAt: row.fetchedAt.toISOString(),
+  });
 });
 
 router.post("/matches", async (req, res) => {
