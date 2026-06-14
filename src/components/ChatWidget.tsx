@@ -717,7 +717,7 @@ export function ChatWidget() {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-[60] sm:inset-auto sm:bottom-20 sm:right-4 sm:left-auto sm:top-auto sm:h-[32rem] sm:w-[24rem]"
+          className="fixed inset-0 z-[60] sm:inset-auto sm:bottom-20 sm:right-4 sm:left-auto sm:top-auto sm:h-[36rem] sm:w-[28rem]"
           aria-hidden={!open}
         >
           <button
