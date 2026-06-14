@@ -19,6 +19,17 @@ async function userHasAcceptedTerms(userId: string): Promise<boolean> {
 router.get("/", async (req, res) => {
   const accepted = await userHasAcceptedTerms(req.user!.id);
   if (!accepted) {
+    // Check if user already has 2+ bets — if so, auto-accept
+    const betCount = await prisma.virtualBet.count({ where: { userId: req.user!.id } });
+    if (betCount >= 2) {
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { hasAcceptedSimulatorTerms: true },
+      });
+      const state = await getSimulatorState(req.user!.id);
+      res.json({ ...state, hasAcceptedSimulatorTerms: true });
+      return;
+    }
     res.json({ hasAcceptedSimulatorTerms: false });
     return;
   }

@@ -118,6 +118,7 @@ export default function SimulatorPage() {
   const [placing, setPlacing] = useState<string | null>(null);
 
   const termsAccepted = state?.hasAcceptedSimulatorTerms ?? false;
+  const hasSufficientBets = (state?.betHistory?.length ?? 0) >= 2;
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -176,7 +177,7 @@ export default function SimulatorPage() {
     return <LoadingScreen label="Wczytywanie gry towarzyskiej…" />;
   }
 
-  if (!termsAccepted) {
+  if (!termsAccepted && !hasSufficientBets) {
     return (
       <>
         <div className="flex min-h-[50vh] items-center justify-center opacity-30">
