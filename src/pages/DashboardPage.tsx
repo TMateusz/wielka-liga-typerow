@@ -12,6 +12,7 @@ import { UpcomingBetsStrip } from "../components/UpcomingBetsStrip";
 import { LoadingScreen } from "../components/LoadingScreen";
 import { RefreshButton } from "../components/RefreshButton";
 import { MatchCard, type MatchData } from "../components/MatchCard";
+import { PushPromoBanner } from "../components/PushPromoBanner";
 
 type MatchesResponse = {
   matches: MatchData[];
@@ -125,6 +126,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-5">
+      <PushPromoBanner />
       <ChatMentionBanner />
 
       {liveMatches.length > 0 && (

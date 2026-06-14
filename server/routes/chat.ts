@@ -234,6 +234,18 @@ router.post("/", requireAuth, sendLimit, async (req, res) => {
 
   await syncMessageMentions(message.id, text, req.user!.id, req.user!.role === "ADMIN");
 
+  // Push notification for mentioned users (best-effort, non-blocking)
+  {
+    const { userIds } = resolveMentionedUserIds(text, mentionUsers, req.user!.id, req.user!.role === "ADMIN");
+    if (userIds.length > 0) {
+      import("../lib/push-scheduler.js")
+        .then(({ sendMentionNotification }) =>
+          sendMentionNotification(userIds, getDisplayName(req.user!))
+        )
+        .catch(() => {});
+    }
+  }
+
   scheduleActivityReward(rewardChatMessage(req.user!.id));
   scheduleActivityReward(rewardOnlineSession(req.user!.id));
 

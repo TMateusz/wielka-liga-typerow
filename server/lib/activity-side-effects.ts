@@ -12,4 +12,12 @@ export async function runAfterMatchFinished(matchId: string): Promise<void> {
   } catch {
     // Moduł aktywności niedostępny — rozliczenie ligi już zakończone.
   }
+
+  // Push notification — best-effort, errors silenced
+  try {
+    const { sendPointsNotification } = await import("./push-scheduler.js");
+    await sendPointsNotification(matchId);
+  } catch {
+    // Push not configured or failed — not critical.
+  }
 }

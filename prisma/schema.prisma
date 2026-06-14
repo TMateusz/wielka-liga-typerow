@@ -54,6 +54,7 @@ model User {
   chatMentions        ChatMention[]
   virtualWallet       VirtualWallet?
   virtualBets         VirtualBet[]
+  pushSubscriptions   PushSubscription[]
 
   @@index([totalPoints])
   @@index([role])
@@ -242,4 +243,17 @@ model VirtualBet {
   @@index([userId])
   @@index([matchId])
   @@index([status])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

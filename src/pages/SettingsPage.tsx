@@ -1,9 +1,15 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Bell, KeyRound, Mail } from "lucide-react";
+import { Bell, KeyRound, Mail, Smartphone } from "lucide-react";
 import { getDisplayName } from "@shared/user-display";
 import { api } from "../api/client";
 import { PwaInstallCard } from "../components/PwaInstallCard";
 import { useAuth, type User } from "../contexts/AuthContext";
+import {
+  isPushSupported,
+  isSubscribedToPush,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "../lib/push-notifications";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -14,12 +20,22 @@ export default function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
 
   useEffect(() => {
     api<User>("/auth/me")
       .then(setProfile)
       .catch(() => setProfile(user));
   }, [user]);
+
+  useEffect(() => {
+    if (isPushSupported()) {
+      setPushSupported(true);
+      isSubscribedToPush().then(setPushSubscribed);
+    }
+  }, []);
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -203,6 +219,54 @@ export default function SettingsPage() {
           {passwordLoading ? "Zapisywanie…" : "Zmień hasło"}
         </button>
       </form>
+
+      {pushSupported && (
+        <div className="card-pitch flex flex-col gap-4 p-6">
+          <div className="flex items-center gap-2 text-[var(--gold)]">
+            <Smartphone className="h-5 w-5" />
+            <h3 className="font-semibold">Powiadomienia push</h3>
+          </div>
+
+          <p className="text-sm text-white/55">
+            Otrzymuj powiadomienia o brakujących typach i zdobytych punktach.
+          </p>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <input
+              type="checkbox"
+              checked={pushSubscribed}
+              disabled={pushLoading}
+              onChange={async () => {
+                setPushLoading(true);
+                if (pushSubscribed) {
+                  const ok = await unsubscribeFromPush();
+                  if (ok) setPushSubscribed(false);
+                } else {
+                  const ok = await subscribeToPush();
+                  if (ok) setPushSubscribed(true);
+                }
+                setPushLoading(false);
+              }}
+              className="mt-1 h-4 w-4 rounded border-white/30"
+            />
+            <span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <Bell className="h-4 w-4 text-[var(--gold)]" />
+                {pushSubscribed ? "Powiadomienia włączone" : "Włącz powiadomienia"}
+              </span>
+              <span className="mt-1 block text-sm text-white/55">
+                „Nie masz typu!" 2h przed meczem · „Zgarniasz X pkt!" po meczu
+              </span>
+            </span>
+          </label>
+
+          {Notification.permission === "denied" && (
+            <p className="text-xs text-red-300/80">
+              Powiadomienia zablokowane w przeglądarce — odblokuj w ustawieniach strony.
+            </p>
+          )}
+        </div>
+      )}
 
       <PwaInstallCard />
     </div>

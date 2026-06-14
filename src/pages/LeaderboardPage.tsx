@@ -13,6 +13,7 @@ import { countOnlineUsers, formatOnlineCount } from "@shared/online-presence";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
 import { ChatMentionBanner } from "../components/ChatMentionBanner";
+import { PushPromoBanner } from "../components/PushPromoBanner";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
 import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
 import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
@@ -487,6 +488,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-8">
+      <PushPromoBanner />
       <ChatMentionBanner />
 
       {!user && (
