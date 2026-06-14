@@ -58,4 +58,26 @@ router.post("/unsubscribe", requireAuth, async (req, res) => {
   res.json({ ok: true });
 });
 
+router.get("/preferences", requireAuth, async (req, res) => {
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+    select: { pushPreferences: true },
+  });
+  res.json({ preferences: user?.pushPreferences ?? null });
+});
+
+router.patch("/preferences", requireAuth, async (req, res) => {
+  const { preferences } = req.body as { preferences?: Record<string, boolean> };
+  if (!preferences || typeof preferences !== "object") {
+    return res.status(400).json({ error: "Brak preferencji" });
+  }
+
+  await prisma.user.update({
+    where: { id: req.user!.id },
+    data: { pushPreferences: JSON.stringify(preferences) },
+  });
+
+  res.json({ ok: true });
+});
+
 export default router;

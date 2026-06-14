@@ -197,18 +197,20 @@ router.post("/", requireAuth, sendLimit, async (req, res) => {
   }
 
   let parentId: string | null = null;
+  let parentAuthorId: string | null = null;
   if (req.body.parentId != null) {
     if (typeof req.body.parentId !== "string") {
       return res.status(400).json({ error: "Nieprawidłowa odpowiedź" });
     }
     const parent = await prisma.chatMessage.findUnique({
       where: { id: req.body.parentId },
-      select: { id: true },
+      select: { id: true, userId: true },
     });
     if (!parent) {
       return res.status(404).json({ error: "Wiadomość, na którą odpowiadasz, nie istnieje" });
     }
     parentId = parent.id;
+    parentAuthorId = parent.userId !== req.user!.id ? parent.userId : null;
   }
 
   const mentionUsers = await loadMentionUsers();
@@ -244,6 +246,15 @@ router.post("/", requireAuth, sendLimit, async (req, res) => {
         )
         .catch(() => {});
     }
+  }
+
+  // Push notification for reply (best-effort, non-blocking)
+  if (parentAuthorId) {
+    import("../lib/push-scheduler.js")
+      .then(({ sendReplyNotification }) =>
+        sendReplyNotification(parentAuthorId!, getDisplayName(req.user!), text)
+      )
+      .catch(() => {});
   }
 
   scheduleActivityReward(rewardChatMessage(req.user!.id));

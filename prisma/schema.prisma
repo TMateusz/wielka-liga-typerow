@@ -42,6 +42,7 @@ model User {
   totalPoints  Float        @default(0)
   role           UserRole     @default(USER)
   hasAcceptedSimulatorTerms Boolean @default(false)
+  pushPreferences   String?
   registrationIp String?
   lastActiveAt   DateTime     @default(now())
   createdAt      DateTime     @default(now())

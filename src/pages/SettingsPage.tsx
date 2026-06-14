@@ -1,6 +1,13 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Bell, KeyRound, Mail, Smartphone } from "lucide-react";
+import { Bell, KeyRound, Mail, Radio, Smartphone } from "lucide-react";
 import { getDisplayName } from "@shared/user-display";
+import {
+  DEFAULT_PUSH_PREFERENCES,
+  PUSH_CATEGORY_LABELS,
+  parsePushPreferences,
+  type PushCategory,
+  type PushPreferences,
+} from "@shared/push-preferences";
 import { api } from "../api/client";
 import { PwaInstallCard } from "../components/PwaInstallCard";
 import { useAuth, type User } from "../contexts/AuthContext";
@@ -23,6 +30,7 @@ export default function SettingsPage() {
   const [pushSupported, setPushSupported] = useState(false);
   const [pushSubscribed, setPushSubscribed] = useState(false);
   const [pushLoading, setPushLoading] = useState(false);
+  const [pushPrefs, setPushPrefs] = useState<PushPreferences>({ ...DEFAULT_PUSH_PREFERENCES });
 
   useEffect(() => {
     api<User>("/auth/me")
@@ -34,6 +42,9 @@ export default function SettingsPage() {
     if (isPushSupported()) {
       setPushSupported(true);
       isSubscribedToPush().then(setPushSubscribed);
+      api<{ preferences: string | null }>("/push/preferences")
+        .then((data) => setPushPrefs(parsePushPreferences(data.preferences)))
+        .catch(() => {});
     }
   }, []);
 
@@ -227,10 +238,6 @@ export default function SettingsPage() {
             <h3 className="font-semibold">Powiadomienia push</h3>
           </div>
 
-          <p className="text-sm text-white/55">
-            Otrzymuj powiadomienia o brakujących typach i zdobytych punktach.
-          </p>
-
           <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
             <input
               type="checkbox"
@@ -255,7 +262,7 @@ export default function SettingsPage() {
                 {pushSubscribed ? "Powiadomienia włączone" : "Włącz powiadomienia"}
               </span>
               <span className="mt-1 block text-sm text-white/55">
-                „Nie masz typu!" 2h przed meczem · „Zgarniasz X pkt!" po meczu
+                Zezwól przeglądarce na wysyłanie powiadomień
               </span>
             </span>
           </label>
@@ -264,6 +271,63 @@ export default function SettingsPage() {
             <p className="text-xs text-red-300/80">
               Powiadomienia zablokowane w przeglądarce — odblokuj w ustawieniach strony.
             </p>
+          )}
+
+          {pushSubscribed && (
+            <>
+              <p className="mt-2 text-xs uppercase tracking-wide text-white/40">Ogólne</p>
+              {(Object.entries(PUSH_CATEGORY_LABELS) as [PushCategory, typeof PUSH_CATEGORY_LABELS[PushCategory]][])
+                .filter(([, meta]) => meta.section === "general")
+                .map(([key, meta]) => (
+                  <label key={key} className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs[key]}
+                      onChange={async () => {
+                        const updated = { ...pushPrefs, [key]: !pushPrefs[key] };
+                        setPushPrefs(updated);
+                        await api("/push/preferences", {
+                          method: "PATCH",
+                          body: JSON.stringify({ preferences: updated }),
+                        }).catch(() => {});
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-white/30"
+                    />
+                    <span>
+                      <span className="font-medium text-white/85">{meta.label}</span>
+                      <span className="mt-0.5 block text-xs text-white/45">{meta.description}</span>
+                    </span>
+                  </label>
+                ))}
+
+              <p className="mt-3 flex items-center gap-1.5 text-xs uppercase tracking-wide text-white/40">
+                <Radio className="h-3 w-3" />
+                Live
+              </p>
+              {(Object.entries(PUSH_CATEGORY_LABELS) as [PushCategory, typeof PUSH_CATEGORY_LABELS[PushCategory]][])
+                .filter(([, meta]) => meta.section === "live")
+                .map(([key, meta]) => (
+                  <label key={key} className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs[key]}
+                      onChange={async () => {
+                        const updated = { ...pushPrefs, [key]: !pushPrefs[key] };
+                        setPushPrefs(updated);
+                        await api("/push/preferences", {
+                          method: "PATCH",
+                          body: JSON.stringify({ preferences: updated }),
+                        }).catch(() => {});
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-white/30"
+                    />
+                    <span>
+                      <span className="font-medium text-white/85">{meta.label}</span>
+                      <span className="mt-0.5 block text-xs text-white/45">{meta.description}</span>
+                    </span>
+                  </label>
+                ))}
+            </>
           )}
         </div>
       )}
