@@ -11,6 +11,8 @@ import {
   mentionTokenForUser,
   MENTION_EVERYONE,
   splitMentionText,
+  isXPostUrl,
+  extractXPostId,
   type MentionUser,
 } from "@shared/chat-mentions";
 
@@ -188,8 +190,50 @@ export function MentionInput({
   );
 }
 
+function XPostEmbed({ url }: { url: string }) {
+  const postId = extractXPostId(url);
+  if (!postId) return null;
+
+  return (
+    <div className="mt-2 overflow-hidden rounded-xl border border-white/10 bg-black/30">
+      <iframe
+        src={`https://platform.twitter.com/embed/Tweet.html?id=${postId}&theme=dark`}
+        className="w-full border-0"
+        style={{ minHeight: "200px", maxHeight: "400px" }}
+        sandbox="allow-scripts allow-same-origin allow-popups"
+        loading="lazy"
+        title="Post z platformy X"
+      />
+    </div>
+  );
+}
+
+function LinkPreview({ url }: { url: string }) {
+  let displayUrl: string;
+  try {
+    const parsed = new URL(url);
+    displayUrl = parsed.hostname + (parsed.pathname !== "/" ? parsed.pathname : "");
+    if (displayUrl.length > 50) displayUrl = displayUrl.slice(0, 47) + "…";
+  } catch {
+    displayUrl = url;
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline text-sky-400 underline decoration-sky-400/40 underline-offset-2 hover:text-sky-300 hover:decoration-sky-300/60 break-all"
+      title={url}
+    >
+      {displayUrl}
+    </a>
+  );
+}
+
 export function MentionText({ text }: { text: string }) {
   const parts = splitMentionText(text);
+  const xLinks = parts.filter((p) => p.type === "link" && isXPostUrl(p.value));
 
   return (
     <>
@@ -198,10 +242,15 @@ export function MentionText({ text }: { text: string }) {
           <span key={index} className="font-semibold text-sky-300">
             {part.value}
           </span>
+        ) : part.type === "link" ? (
+          <LinkPreview key={index} url={part.value} />
         ) : (
           <span key={index}>{part.value}</span>
         ),
       )}
+      {xLinks.length > 0 && xLinks.map((link, index) => (
+        <XPostEmbed key={`x-${index}`} url={link.value} />
+      ))}
     </>
   );
 }

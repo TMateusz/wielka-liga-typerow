@@ -126,7 +126,7 @@ function PredictionCell({
           className={`text-[9px] font-semibold sm:text-xs sm:font-medium ${getPointsToneClass(pts)} ${
             live ? "animate-pulse" : ""
           }`}
-          title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+          title={live ? `Punkty na żywo — Twój typ: ${score}` : undefined}
         >
           +{formatPoints(pts)}
         </span>
@@ -831,7 +831,7 @@ export default function LeaderboardPage() {
                                           className={`font-semibold ${getPointsToneClass(prediction!.pointsEarned!)} ${
                                             live ? "animate-pulse" : ""
                                           }`}
-                                          title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+                                          title={live ? `Punkty na żywo — Twój typ: ${prediction!.predictedHomeScore}:${prediction!.predictedAwayScore}` : undefined}
                                         >
                                           +{formatPoints(prediction!.pointsEarned!)} pkt
                                           {live ? " (live)" : ""}

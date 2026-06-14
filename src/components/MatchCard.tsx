@@ -233,7 +233,11 @@ export function MatchCard({ match, onSave }: Props) {
             <CheckCircle2 className="h-4 w-4" />
           )}
           {live ? "Punkty na żywo" : "Zdobyte punkty"}: {formatPoints(match.prediction.pointsEarned)}
-          {live && <span className="text-white/45">(mogą się zmienić)</span>}
+          {live && (
+            <span className="text-white/55">
+              Twój typ: {match.prediction.predictedHomeScore}:{match.prediction.predictedAwayScore}
+            </span>
+          )}
         </p>
       )}
 

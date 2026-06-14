@@ -86,7 +86,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={handleProfileSubmit} className="card-pitch flex flex-col gap-4 p-6">
+      <form onSubmit={handleProfileSubmit} className="card-pitch flex flex-col gap-4 p-6 hidden">
         <div className="flex items-center gap-2 text-[var(--gold)]">
           <Mail className="h-5 w-5" />
           <h3 className="font-semibold">E-mail i przypomnienia</h3>

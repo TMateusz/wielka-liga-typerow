@@ -42,15 +42,18 @@ export function resolveMentionedUserIds(
 
 export type MentionTextPart =
   | { type: "text"; value: string }
-  | { type: "mention"; value: string };
+  | { type: "mention"; value: string }
+  | { type: "link"; value: string };
+
+const URL_REGEX = /https?:\/\/[^\s<>)"']+/gi;
 
 /** Dzieli tekst na zwykły tekst i podświetlane @wzmianki. */
 export function splitMentionText(text: string): MentionTextPart[] {
   const parts: MentionTextPart[] = [];
-  const regex = /@(?:wszyscy|[\p{L}]+(?:\s+[\p{L}]+)*)/giu;
+  const mentionRegex = /@(?:wszyscy|[\p{L}]+(?:\s+[\p{L}]+)*)/giu;
   let lastIndex = 0;
 
-  for (const match of text.matchAll(regex)) {
+  for (const match of text.matchAll(mentionRegex)) {
     const index = match.index ?? 0;
     if (index > lastIndex) {
       parts.push({ type: "text", value: text.slice(lastIndex, index) });
@@ -63,7 +66,56 @@ export function splitMentionText(text: string): MentionTextPart[] {
     parts.push({ type: "text", value: text.slice(lastIndex) });
   }
 
-  return parts.length > 0 ? parts : [{ type: "text", value: text }];
+  if (parts.length === 0) {
+    parts.push({ type: "text", value: text });
+  }
+
+  // Second pass: split text parts to detect URLs
+  const result: MentionTextPart[] = [];
+  for (const part of parts) {
+    if (part.type !== "text") {
+      result.push(part);
+      continue;
+    }
+    let remaining = part.value;
+    let urlMatch: RegExpExecArray | null;
+    const urlRe = new RegExp(URL_REGEX.source, "gi");
+    let partLastIndex = 0;
+
+    while ((urlMatch = urlRe.exec(remaining)) !== null) {
+      const idx = urlMatch.index;
+      if (idx > partLastIndex) {
+        result.push({ type: "text", value: remaining.slice(partLastIndex, idx) });
+      }
+      // Strip trailing punctuation that's likely not part of the URL
+      let url = urlMatch[0];
+      const trailingPunct = /[.,;:!?)]+$/.exec(url);
+      if (trailingPunct) {
+        url = url.slice(0, -trailingPunct[0].length);
+        // Adjust regex lastIndex so punctuation isn't skipped
+        urlRe.lastIndex -= trailingPunct[0].length;
+      }
+      result.push({ type: "link", value: url });
+      partLastIndex = urlRe.lastIndex;
+    }
+
+    if (partLastIndex < remaining.length) {
+      result.push({ type: "text", value: remaining.slice(partLastIndex) });
+    }
+  }
+
+  return result.length > 0 ? result : [{ type: "text", value: text }];
+}
+
+/** Checks if a URL is an X/Twitter post link. */
+export function isXPostUrl(url: string): boolean {
+  return /^https?:\/\/(www\.)?(twitter\.com|x\.com)\/[^/]+\/status\/\d+/i.test(url);
+}
+
+/** Extracts the tweet/post ID from an X/Twitter URL. */
+export function extractXPostId(url: string): string | null {
+  const match = url.match(/\/status\/(\d+)/);
+  return match ? match[1] : null;
 }
 
 export function filterMentionCandidates(
