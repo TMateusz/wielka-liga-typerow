@@ -12,11 +12,13 @@ import adminRoutes from "./routes/admin.js";
 import chatRoutes from "./routes/chat.js";
 import calendarRoutes from "./routes/calendar.js";
 import simulatorRoutes from "./routes/simulator.js";
+import pushRoutes from "./routes/push.js";
 import { ensureSeeded } from "./lib/ensure-seeded.js";
 import { tuneSqlite } from "./lib/sqlite-tuning.js";
 import { startReminderScheduler } from "./lib/reminder-scheduler.js";
 import { startLiveSyncScheduler } from "./lib/live-sync-scheduler.js";
 import { startSimulatorOddsScheduler } from "./lib/simulator-odds-scheduler.js";
+import { startPushScheduler } from "./lib/push-scheduler.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 3001;
@@ -39,6 +41,7 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/calendar", calendarRoutes);
 app.use("/api/simulator", simulatorRoutes);
+app.use("/api/push", pushRoutes);
 
 const clientDir = path.join(__dirname, "../client");
 const clientIndex = path.join(clientDir, "index.html");
@@ -79,6 +82,7 @@ async function start() {
     startLiveSyncScheduler();
     startSimulatorOddsScheduler();
     startReminderScheduler();
+    startPushScheduler();
   });
 }
 

@@ -3,6 +3,8 @@ import { parseStoredScorers } from "../../shared/goal-scorers.js";
 import { localizeMatch } from "../../shared/team-names.js";
 import { getLastResultUpdate } from "../lib/last-result-update.js";
 import { getTournamentProgress } from "../lib/tournament-progress.js";
+import { getOutcome } from "../../shared/scoring.js";
+import { getDisplayName } from "../../shared/display-names.js";
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -22,6 +24,49 @@ router.get("/", requireAuth, async (req, res) => {
     getTournamentProgress(),
   ]);
 
+  const liveMatchIds = matches.filter((m) => m.status === "LIVE").map((m) => m.id);
+
+  // For live matches, fetch all predictions to compute community stats
+  let liveStatsMap = new Map<string, {
+    outcomeDistribution: { home: number; draw: number; away: number };
+    exactHitNames: string[];
+  }>();
+
+  if (liveMatchIds.length > 0) {
+    const allLivePredictions = await prisma.prediction.findMany({
+      where: { matchId: { in: liveMatchIds } },
+      select: {
+        matchId: true,
+        predictedHomeScore: true,
+        predictedAwayScore: true,
+        pointsEarned: true,
+        user: { select: { firstName: true, lastName: true, nickname: true } },
+      },
+    });
+
+    for (const matchId of liveMatchIds) {
+      const preds = allLivePredictions.filter((p) => p.matchId === matchId);
+      let home = 0, draw = 0, away = 0;
+      const exactHitNames: string[] = [];
+
+      for (const p of preds) {
+        const outcome = getOutcome(p.predictedHomeScore, p.predictedAwayScore);
+        if (outcome === "home") home++;
+        else if (outcome === "draw") draw++;
+        else away++;
+
+        if (p.pointsEarned != null && p.pointsEarned >= 3) {
+          exactHitNames.push(getDisplayName(p.user));
+        }
+      }
+
+      liveStatsMap.set(matchId, {
+        outcomeDistribution: { home, draw, away },
+        exactHitNames,
+      });
+    }
+  }
+
   const result = matches.map((m) =>
     localizeMatch({
       id: m.id,
@@ -36,6 +81,7 @@ router.get("/", requireAuth, async (req, res) => {
       homeScore: m.homeScore,
       awayScore: m.awayScore,
       knockoutWinner: m.knockoutWinner,
+      liveStats: liveStatsMap.get(m.id) ?? null,
       prediction: m.predictions[0]
         ? {
             predictedHomeScore: m.predictions[0].predictedHomeScore,

@@ -1,9 +1,22 @@
 import { FormEvent, useEffect, useState } from "react";
-import { Bell, KeyRound, Mail } from "lucide-react";
+import { Bell, KeyRound, Mail, Radio, Smartphone } from "lucide-react";
 import { getDisplayName } from "@shared/user-display";
+import {
+  DEFAULT_PUSH_PREFERENCES,
+  PUSH_CATEGORY_LABELS,
+  parsePushPreferences,
+  type PushCategory,
+  type PushPreferences,
+} from "@shared/push-preferences";
 import { api } from "../api/client";
 import { PwaInstallCard } from "../components/PwaInstallCard";
 import { useAuth, type User } from "../contexts/AuthContext";
+import {
+  isPushSupported,
+  isSubscribedToPush,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "../lib/push-notifications";
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -14,12 +27,26 @@ export default function SettingsPage() {
   const [passwordSuccess, setPasswordSuccess] = useState("");
   const [profileLoading, setProfileLoading] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [pushSupported, setPushSupported] = useState(false);
+  const [pushSubscribed, setPushSubscribed] = useState(false);
+  const [pushLoading, setPushLoading] = useState(false);
+  const [pushPrefs, setPushPrefs] = useState<PushPreferences>({ ...DEFAULT_PUSH_PREFERENCES });
 
   useEffect(() => {
     api<User>("/auth/me")
       .then(setProfile)
       .catch(() => setProfile(user));
   }, [user]);
+
+  useEffect(() => {
+    if (isPushSupported()) {
+      setPushSupported(true);
+      isSubscribedToPush().then(setPushSubscribed);
+      api<{ preferences: string | null }>("/push/preferences")
+        .then((data) => setPushPrefs(parsePushPreferences(data.preferences)))
+        .catch(() => {});
+    }
+  }, []);
 
   async function handleProfileSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -86,7 +113,7 @@ export default function SettingsPage() {
         </p>
       </div>
 
-      <form onSubmit={handleProfileSubmit} className="card-pitch flex flex-col gap-4 p-6">
+      <form onSubmit={handleProfileSubmit} className="card-pitch flex flex-col gap-4 p-6 hidden">
         <div className="flex items-center gap-2 text-[var(--gold)]">
           <Mail className="h-5 w-5" />
           <h3 className="font-semibold">E-mail i przypomnienia</h3>
@@ -203,6 +230,107 @@ export default function SettingsPage() {
           {passwordLoading ? "Zapisywanie…" : "Zmień hasło"}
         </button>
       </form>
+
+      {pushSupported && (
+        <div className="card-pitch flex flex-col gap-4 p-6">
+          <div className="flex items-center gap-2 text-[var(--gold)]">
+            <Smartphone className="h-5 w-5" />
+            <h3 className="font-semibold">Powiadomienia push</h3>
+          </div>
+
+          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-white/10 bg-white/5 p-3">
+            <input
+              type="checkbox"
+              checked={pushSubscribed}
+              disabled={pushLoading}
+              onChange={async () => {
+                setPushLoading(true);
+                if (pushSubscribed) {
+                  const ok = await unsubscribeFromPush();
+                  if (ok) setPushSubscribed(false);
+                } else {
+                  const ok = await subscribeToPush();
+                  if (ok) setPushSubscribed(true);
+                }
+                setPushLoading(false);
+              }}
+              className="mt-1 h-4 w-4 rounded border-white/30"
+            />
+            <span>
+              <span className="flex items-center gap-1.5 font-medium">
+                <Bell className="h-4 w-4 text-[var(--gold)]" />
+                {pushSubscribed ? "Powiadomienia włączone" : "Włącz powiadomienia"}
+              </span>
+              <span className="mt-1 block text-sm text-white/55">
+                Zezwól przeglądarce na wysyłanie powiadomień
+              </span>
+            </span>
+          </label>
+
+          {Notification.permission === "denied" && (
+            <p className="text-xs text-red-300/80">
+              Powiadomienia zablokowane w przeglądarce — odblokuj w ustawieniach strony.
+            </p>
+          )}
+
+          {pushSubscribed && (
+            <>
+              <p className="mt-2 text-xs uppercase tracking-wide text-white/40">Ogólne</p>
+              {(Object.entries(PUSH_CATEGORY_LABELS) as [PushCategory, typeof PUSH_CATEGORY_LABELS[PushCategory]][])
+                .filter(([, meta]) => meta.section === "general")
+                .map(([key, meta]) => (
+                  <label key={key} className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs[key]}
+                      onChange={async () => {
+                        const updated = { ...pushPrefs, [key]: !pushPrefs[key] };
+                        setPushPrefs(updated);
+                        await api("/push/preferences", {
+                          method: "PATCH",
+                          body: JSON.stringify({ preferences: updated }),
+                        }).catch(() => {});
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-white/30"
+                    />
+                    <span>
+                      <span className="font-medium text-white/85">{meta.label}</span>
+                      <span className="mt-0.5 block text-xs text-white/45">{meta.description}</span>
+                    </span>
+                  </label>
+                ))}
+
+              <p className="mt-3 flex items-center gap-1.5 text-xs uppercase tracking-wide text-white/40">
+                <Radio className="h-3 w-3" />
+                Live
+              </p>
+              {(Object.entries(PUSH_CATEGORY_LABELS) as [PushCategory, typeof PUSH_CATEGORY_LABELS[PushCategory]][])
+                .filter(([, meta]) => meta.section === "live")
+                .map(([key, meta]) => (
+                  <label key={key} className="flex cursor-pointer items-start gap-3 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={pushPrefs[key]}
+                      onChange={async () => {
+                        const updated = { ...pushPrefs, [key]: !pushPrefs[key] };
+                        setPushPrefs(updated);
+                        await api("/push/preferences", {
+                          method: "PATCH",
+                          body: JSON.stringify({ preferences: updated }),
+                        }).catch(() => {});
+                      }}
+                      className="mt-0.5 h-4 w-4 rounded border-white/30"
+                    />
+                    <span>
+                      <span className="font-medium text-white/85">{meta.label}</span>
+                      <span className="mt-0.5 block text-xs text-white/45">{meta.description}</span>
+                    </span>
+                  </label>
+                ))}
+            </>
+          )}
+        </div>
+      )}
 
       <PwaInstallCard />
     </div>

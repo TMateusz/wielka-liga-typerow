@@ -114,10 +114,11 @@ export default function SimulatorPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [acceptingTerms, setAcceptingTerms] = useState(false);
   const [error, setError] = useState("");
-  const [stakes, setStakes] = useState<Record<string, number>>({});
+  const [stakes, setStakes] = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState<string | null>(null);
 
   const termsAccepted = state?.hasAcceptedSimulatorTerms ?? false;
+  const hasSufficientBets = (state?.betHistory?.length ?? 0) >= 2;
 
   const load = useCallback(async (silent = false) => {
     if (silent) setRefreshing(true);
@@ -152,13 +153,17 @@ export default function SimulatorPage() {
   }
 
   async function placeBet(matchId: string, selection: VirtualBetSelection) {
-    const stake = stakes[matchId] ?? state?.limits?.minStake ?? 10;
+    const stakeValue = Number(stakes[matchId]);
+    if (!stakeValue || stakeValue < (state?.limits?.minStake ?? 1)) {
+      setError(`Podaj kwotę od ${state?.limits?.minStake ?? 1} do ${Math.min(state?.limits?.maxStake ?? 9999, state?.wallet?.balance ?? 0)} pkt`);
+      return;
+    }
     setPlacing(`${matchId}-${selection}`);
     setError("");
     try {
       const data = await api<SimulatorState>("/simulator/bets", {
         method: "POST",
-        body: JSON.stringify({ matchId, selection, stake }),
+        body: JSON.stringify({ matchId, selection, stake: stakeValue }),
       });
       setState(data);
     } catch (e) {
@@ -172,7 +177,7 @@ export default function SimulatorPage() {
     return <LoadingScreen label="Wczytywanie gry towarzyskiej…" />;
   }
 
-  if (!termsAccepted) {
+  if (!termsAccepted && !hasSufficientBets) {
     return (
       <>
         <div className="flex min-h-[50vh] items-center justify-center opacity-30">
@@ -259,7 +264,7 @@ export default function SimulatorPage() {
               Typuj mecze, pisz na czacie i bądź aktywny — punkty pojawią się tutaj.
             </p>
           ) : (
-            <ul className="max-h-48 space-y-1.5 overflow-y-auto text-sm">
+            <ul className="space-y-1.5 text-sm">
               {recentEarnings.map((entry, i) => (
                 <li
                   key={`${entry.createdAt}-${i}`}
@@ -325,7 +330,8 @@ export default function SimulatorPage() {
         ) : (
           <ul className="space-y-3">
             {bettableMatches.map((match) => {
-              const stake = stakes[match.id] ?? limits.minStake;
+              const stakeStr = stakes[match.id] ?? "";
+              const stakeNum = Number(stakeStr) || 0;
               const hasBet = Boolean(match.userBet);
               return (
                 <li key={match.id} className="card-pitch p-4">
@@ -372,7 +378,7 @@ export default function SimulatorPage() {
                           <button
                             key={selection}
                             type="button"
-                            disabled={placing !== null || wallet.balance < stake}
+                            disabled={placing !== null || !stakeNum || stakeNum < limits.minStake || stakeNum > wallet.balance}
                             onClick={() => void placeBet(match.id, selection)}
                             className="rounded-xl border border-white/10 bg-white/5 px-2 py-3 text-center transition hover:border-[var(--wc-gold)]/40 hover:bg-[var(--wc-gold)]/10 disabled:opacity-50"
                           >
@@ -383,7 +389,7 @@ export default function SimulatorPage() {
                               {formatOddsDecimal(oddsValue)}
                             </p>
                             <p className="mt-1 text-[10px] text-white/40">
-                              +{formatActivityPoints(potentialPayout(stake, oddsValue))} pkt
+                              {stakeNum > 0 ? `+${formatActivityPoints(potentialPayout(stakeNum, oddsValue))} pkt` : "—"}
                             </p>
                           </button>
                         ))}
@@ -394,14 +400,15 @@ export default function SimulatorPage() {
                           type="number"
                           min={limits.minStake}
                           max={Math.min(limits.maxStake, wallet.balance)}
-                          value={stake}
+                          value={stakeStr}
+                          placeholder={`${limits.minStake}–${Math.min(limits.maxStake, wallet.balance)}`}
                           onChange={(e) =>
                             setStakes((prev) => ({
                               ...prev,
-                              [match.id]: Number(e.target.value) || limits.minStake,
+                              [match.id]: e.target.value,
                             }))
                           }
-                          className="input-score w-20 text-center text-sm"
+                          className="input-score w-28 text-center text-sm"
                         />
                         <span className="text-xs text-white/35">pkt aktywności</span>
                       </div>

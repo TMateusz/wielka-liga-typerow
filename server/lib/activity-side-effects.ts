@@ -12,4 +12,21 @@ export async function runAfterMatchFinished(matchId: string): Promise<void> {
   } catch {
     // Moduł aktywności niedostępny — rozliczenie ligi już zakończone.
   }
+
+  // Push notifications — best-effort, errors silenced
+  try {
+    const { sendPointsNotification, sendMatchFinishedNotification } = await import("./push-scheduler.js");
+    // Get final score for the finished notification
+    const { prisma } = await import("./prisma.js");
+    const match = await prisma.match.findUnique({
+      where: { id: matchId },
+      select: { homeScore: true, awayScore: true },
+    });
+    if (match?.homeScore != null && match?.awayScore != null) {
+      await sendMatchFinishedNotification(matchId, match.homeScore, match.awayScore);
+    }
+    await sendPointsNotification(matchId);
+  } catch {
+    // Push not configured or failed — not critical.
+  }
 }

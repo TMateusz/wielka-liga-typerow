@@ -29,6 +29,10 @@ export type MatchData = {
   homeScore: number | null;
   awayScore: number | null;
   knockoutWinner?: string | null;
+  liveStats?: {
+    outcomeDistribution: { home: number; draw: number; away: number };
+    exactHitNames: string[];
+  } | null;
   prediction: {
     predictedHomeScore: number;
     predictedAwayScore: number;
@@ -233,7 +237,11 @@ export function MatchCard({ match, onSave }: Props) {
             <CheckCircle2 className="h-4 w-4" />
           )}
           {live ? "Punkty na żywo" : "Zdobyte punkty"}: {formatPoints(match.prediction.pointsEarned)}
-          {live && <span className="text-white/45">(mogą się zmienić)</span>}
+          {live && (
+            <span className="text-white/55">
+              Twój typ: {match.prediction.predictedHomeScore}:{match.prediction.predictedAwayScore}
+            </span>
+          )}
         </p>
       )}
 
@@ -241,6 +249,49 @@ export function MatchCard({ match, onSave }: Props) {
         <p className="mb-3 text-center text-sm text-red-300/80">
           Mecz trwa — wynik i punkty odświeżają się co {LIVE_UI_POLL_SEC} sekund.
         </p>
+      )}
+
+      {live && match.liveStats && (
+        <div className="mb-3 space-y-1.5">
+          {(() => {
+            const { home: h, draw: d, away: a } = match.liveStats.outcomeDistribution;
+            const total = h + d + a;
+            if (total === 0) return null;
+            const pctH = Math.round((h / total) * 100);
+            const pctD = Math.round((d / total) * 100);
+            const pctA = Math.round((a / total) * 100);
+            return (
+              <div className="flex items-center gap-1.5 text-[11px]">
+                <span className="w-7 text-right font-mono text-white/50">{pctH}%</span>
+                <div className="flex h-2 flex-1 overflow-hidden rounded-full bg-white/10">
+                  {pctH > 0 && <div className="bg-emerald-400/70" style={{ width: `${pctH}%` }} />}
+                  {pctD > 0 && <div className="bg-white/40" style={{ width: `${pctD}%` }} />}
+                  {pctA > 0 && <div className="bg-sky-400/70" style={{ width: `${pctA}%` }} />}
+                </div>
+                <span className="w-7 font-mono text-white/50">{pctA}%</span>
+              </div>
+            );
+          })()}
+          {(() => {
+            const { home: h, draw: d, away: a } = match.liveStats.outcomeDistribution;
+            const total = h + d + a;
+            if (total === 0) return null;
+            return (
+              <p className="text-center text-[10px] text-white/40">
+                {h} na {match.homeTeam} · {d} remis · {a} na {match.awayTeam}
+              </p>
+            );
+          })()}
+          {match.liveStats.exactHitNames.length > 0 ? (
+            <p className="text-center text-[10px] text-green-400/80">
+              🎯 3 pkt: {match.liveStats.exactHitNames.join(", ")}
+            </p>
+          ) : (
+            <p className="text-center text-[10px] text-white/35">
+              🎯 3 pkt: brak
+            </p>
+          )}
+        </div>
       )}
 
       {!finished && !live && (

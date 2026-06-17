@@ -695,7 +695,7 @@ export function ChatWidget() {
             disabled={sending || !!editingId}
             users={mentionUsers}
             isAdmin={isAdmin}
-            className="min-w-0 flex-1 rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-[var(--wc-gold)]"
+            className="w-full rounded-xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm outline-none focus:border-[var(--wc-gold)]"
           />
           <button
             type="submit"
@@ -717,7 +717,7 @@ export function ChatWidget() {
     <>
       {open && (
         <div
-          className="fixed inset-0 z-[60] sm:inset-auto sm:bottom-20 sm:right-4 sm:left-auto sm:top-auto sm:h-[32rem] sm:w-[24rem]"
+          className="fixed inset-0 z-[60] sm:inset-auto sm:bottom-20 sm:right-4 sm:left-auto sm:top-auto sm:h-[36rem] sm:w-[28rem]"
           aria-hidden={!open}
         >
           <button

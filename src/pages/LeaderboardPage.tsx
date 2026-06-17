@@ -13,6 +13,7 @@ import { countOnlineUsers, formatOnlineCount } from "@shared/online-presence";
 import { hasMatchesNeedingLivePoll, LIVE_UI_POLL_MS } from "@shared/live-sync";
 import { abbreviateTeam } from "@shared/team-abbrev";
 import { ChatMentionBanner } from "../components/ChatMentionBanner";
+import { PushPromoBanner } from "../components/PushPromoBanner";
 import { LeaderGapBanner } from "../components/LeaderGapBanner";
 import { PlayerStatsPanel } from "../components/PlayerStatsPanel";
 import { TournamentStatusInfo, type TournamentProgress } from "../components/TournamentStatusInfo";
@@ -126,7 +127,7 @@ function PredictionCell({
           className={`text-[9px] font-semibold sm:text-xs sm:font-medium ${getPointsToneClass(pts)} ${
             live ? "animate-pulse" : ""
           }`}
-          title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+          title={live ? `Punkty na żywo — Twój typ: ${score}` : undefined}
         >
           +{formatPoints(pts)}
         </span>
@@ -487,6 +488,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="space-y-8">
+      <PushPromoBanner />
       <ChatMentionBanner />
 
       {!user && (
@@ -831,7 +833,7 @@ export default function LeaderboardPage() {
                                           className={`font-semibold ${getPointsToneClass(prediction!.pointsEarned!)} ${
                                             live ? "animate-pulse" : ""
                                           }`}
-                                          title={live ? "Punkty na żywo — mogą się zmienić" : undefined}
+                                          title={live ? `Punkty na żywo — Twój typ: ${prediction!.predictedHomeScore}:${prediction!.predictedAwayScore}` : undefined}
                                         >
                                           +{formatPoints(prediction!.pointsEarned!)} pkt
                                           {live ? " (live)" : ""}

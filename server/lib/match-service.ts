@@ -100,6 +100,10 @@ export async function updateLiveMatchScore(
     return;
   }
 
+  const wasNotLive = match.status !== MatchStatus.LIVE;
+  const oldTotalGoals = (match.homeScore ?? 0) + (match.awayScore ?? 0);
+  const newTotalGoals = homeScore + awayScore;
+
   const knockout = isKnockoutStage(match.stage);
   const regulationDraw = isDrawScore(homeScore, awayScore);
   const knockoutWinner =
@@ -110,6 +114,18 @@ export async function updateLiveMatchScore(
     knockoutWinner,
     ...(liveClock !== undefined ? { liveClock } : {}),
   });
+
+  // LIVE push notifications (best-effort, non-blocking)
+  if (wasNotLive) {
+    import("./push-scheduler.js")
+      .then(({ sendMatchStartedNotification }) => sendMatchStartedNotification(matchId))
+      .catch(() => {});
+  }
+  if (newTotalGoals > oldTotalGoals && !wasNotLive) {
+    import("./push-scheduler.js")
+      .then(({ sendGoalNotification }) => sendGoalNotification(matchId, homeScore, awayScore))
+      .catch(() => {});
+  }
 }
 
 /** Cofa błędne rozliczenie (np. sync przed startem meczu) i zeruje naliczone punkty. */
