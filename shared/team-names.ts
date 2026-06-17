@@ -11,6 +11,8 @@ const TEAM_NAMES_PL: Record<string, string> = {
   "Cape Verde": "Republika Zielonego Przylądka",
   Colombia: "Kolumbia",
   "Congo DR": "DR Konga",
+  "DR Congo": "DR Konga",
+  "Democratic Republic of the Congo": "DR Konga",
   Croatia: "Chorwacja",
   "Côte d'Ivoire": "Wybrzeże Kości Słoniowej",
   "Cote d'Ivoire": "Wybrzeże Kości Słoniowej",

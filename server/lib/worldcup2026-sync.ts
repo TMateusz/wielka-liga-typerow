@@ -1,4 +1,5 @@
 import { MatchStatus } from "@prisma/client";
+import { translateTeamName } from "../../shared/team-names.js";
 import { isDrawScore, isKnockoutStage } from "../../shared/knockout.js";
 import {
   parseStoredScorers,
@@ -34,6 +35,47 @@ export function getWorldCup2026SyncStatus() {
     isSyncing,
     apiUrl: process.env.WORLDCUP2026_API_URL ?? "https://worldcup26.ir",
   };
+}
+
+/** Sprowadza nazwę drużyny do formy kanonicznej (PL, bez znaków diakrytycznych/spacji). */
+function canonTeam(name: string | null | undefined): string {
+  if (!name) return "";
+  return translateTeamName(name)
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/** Klucz pary drużyn meczu (gospodarz|gość) w formie kanonicznej. */
+function teamPairKey(home: string | null | undefined, away: string | null | undefined): string {
+  return `${canonTeam(home)}|${canonTeam(away)}`;
+}
+
+/**
+ * Dopasowuje mecz z API do lokalnego rekordu. Najpierw po nazwach drużyn
+ * (odporne na różną kolejność meczów w API vs terminarzu), a gdy API nie podaje
+ * jeszcze nazw (faza pucharowa) — fallback po numerze meczu (id == fixtureNumber).
+ */
+async function findLocalMatch(game: Wc2026Game, fixtureNumber: number) {
+  const apiHome = game.home_team_name_en;
+  const apiAway = game.away_team_name_en;
+
+  if (apiHome && apiAway) {
+    const pairKey = teamPairKey(apiHome, apiAway);
+    const candidates = await prisma.match.findMany({
+      where: {
+        OR: [
+          { homeTeam: translateTeamName(apiHome), awayTeam: translateTeamName(apiAway) },
+          { fixtureNumber },
+        ],
+      },
+    });
+    const byPair = candidates.find((m) => teamPairKey(m.homeTeam, m.awayTeam) === pairKey);
+    if (byPair) return byPair;
+  }
+
+  return prisma.match.findFirst({ where: { fixtureNumber } });
 }
 
 function parseScore(value: string | null | undefined): number | null {
@@ -99,7 +141,7 @@ function scorersNeedUpdate(
 export async function backfillFinishedScorers(games: Wc2026Game[]): Promise<number> {
   const finished = await prisma.match.findMany({
     where: { status: MatchStatus.FINISHED },
-    select: { id: true, fixtureNumber: true, homeScorers: true, awayScorers: true },
+    select: { id: true, fixtureNumber: true, homeTeam: true, awayTeam: true, homeScorers: true, awayScorers: true },
   });
 
   const byFixture = new Map(
@@ -111,10 +153,17 @@ export async function backfillFinishedScorers(games: Wc2026Game[]): Promise<numb
       .filter((x): x is [number, Wc2026Game] => x != null),
   );
 
+  const byPair = new Map(
+    games
+      .filter((g) => g.home_team_name_en && g.away_team_name_en)
+      .map((g) => [teamPairKey(g.home_team_name_en, g.away_team_name_en), g] as const),
+  );
+
   let updated = 0;
   for (const match of finished) {
-    if (match.fixtureNumber == null) continue;
-    const game = byFixture.get(match.fixtureNumber);
+    const game =
+      byPair.get(teamPairKey(match.homeTeam, match.awayTeam)) ??
+      (match.fixtureNumber != null ? byFixture.get(match.fixtureNumber) : undefined);
     if (!game || !scorersNeedUpdate(match, game)) continue;
 
     await prisma.match.update({
@@ -185,9 +234,7 @@ async function applyGameUpdate(
   fixtureNumber: number,
   result: Wc2026SyncResult,
 ) {
-  let match = await prisma.match.findFirst({
-    where: { fixtureNumber },
-  });
+  let match = await findLocalMatch(game, fixtureNumber);
 
   if (!match) {
     result.skipped++;
@@ -199,7 +246,7 @@ async function applyGameUpdate(
       await reopenMatch(match.id);
       result.updated++;
       result.errors.push(`M${fixtureNumber}: cofnięto błędne rozliczenie przed startem meczu`);
-      match = (await prisma.match.findFirst({ where: { fixtureNumber } }))!;
+      match = (await prisma.match.findUnique({ where: { id: match.id } }))!;
     } else {
       if (scorersNeedUpdate(match, game)) {
         await prisma.match.update({
